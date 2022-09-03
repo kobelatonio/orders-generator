@@ -81,21 +81,23 @@ function processData(raw) {
             continue;
         }
 
-        let isIncluded = false;
-
-        includeOrders.forEach(it => {
-            if (it.includes('-')) {
-                let range = it.split('-');
-                if (orderNumber >= range[0] && orderNumber <= range[1]) {
+        if (includeOrders[0] != '') {
+            let isIncluded = false;
+    
+            includeOrders.forEach(it => {
+                if (it.includes('-')) {
+                    let range = it.split('-');
+                    if (orderNumber >= range[0] && orderNumber <= range[1]) {
+                        isIncluded = true;
+                    }
+                } else if (orderNumber == it) {
                     isIncluded = true;
                 }
-            } else if (orderNumber == it) {
-                isIncluded = true;
+            });
+    
+            if (!isIncluded) {
+                continue;
             }
-        });
-
-        if (!isIncluded) {
-            continue;
         }
 
         let row = [];
@@ -199,8 +201,13 @@ function createTable() {
 
     var rowHead = document.createElement('tr');
 
-    tableData[0].forEach(cellData => {
+    tableData[0].forEach((cellData, index) => {
         var cell = document.createElement('th');
+
+        if ([4, 5, 6].includes(index)) {
+            cell.classList = 'text-nowrap';
+        }
+
         cell.appendChild(document.createTextNode(cellData));
         rowHead.appendChild(cell);
     });
@@ -287,13 +294,16 @@ function createTable() {
     table.classList.add('table');
     table.classList.add('table-striped');
 
-
     let button = document.createElement('button');
     button.classList = 'btn btn-success mb-3';
     button.innerHTML = 'Export CSV';
     button.setAttribute('onclick', 'exportCsv()');
     document.querySelector('.table-container').appendChild(button);
     document.querySelector('.table-container').appendChild(table);
+
+    $('select').selectize({
+        sortField: 'text'
+    });
 }
 
 function onProvinceChange(index) {
@@ -425,7 +435,7 @@ function formatPhoneNumber(str) {
 }
 
 function updateButton() {
-    if(document.getElementById("file").value === "" || document.getElementById("includeOrders").value === "") { 
+    if(document.getElementById("file").value === "") { 
         document.getElementById('uploadButton').disabled = true; 
     } else { 
         document.getElementById('uploadButton').disabled = false;
