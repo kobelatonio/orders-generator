@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.21/jquery.csv.min.js" ></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.21/jquery.csv.js" ></script>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+        <title>Orders Generator</title>
+    </head>
+</html>
+<body>
+    <div class="container-fluid">
+        <div class="d-flex mb-3 gap-3 align-items-center">
+            <h1>Orders Generator</h1>
+            <button type="button" class="btn btn-primary" id="uploadButton" onclick="upload()" disabled>Create Table</button>
+        </div>
+        <div class="d-flex mb-3 gap-3 flex-wrap align-items-start">
+            <div class="input-pair">
+                <label class="d-block" for="file">Upload CSV files: <span class="text-danger">*</span></label>
+                <input class="d-block" type="file" name="file" id="file" multiple="multiple" onchange="updateButton()" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"/>
+            </div>
+            <div class="input-pair">
+                <label class="d-block" for="includeOrders">Include orders: <span class="text-danger">*</span></label>
+                <input class="d-block" type="text" name="includeOrders" id="includeOrders" onchange="updateButton()" placeholder="e.g. 28940-28950 28965"/>
+            </div>
+            <div class="input-pair">
+                <label class="d-block" for="excludeNames">Exclude names with:</label>
+                <input class="d-block" type="text" name="excludeNames" id="excludeNames" value="(FB) (IG) (GRAB)"/>
+                <label class="d-block mt-2" for="overrideExcludeNames">Except orders:</label>
+                <input class="d-block" type="text" name="overrideExcludeNames" id="overrideExcludeNames" placeholder="e.g. 28800 28815"/>
+            </div>
+            <div class="input-pair">
+                <label class="d-block" for="excludeOrders">Exclude orders:</label>
+                <input class="d-block" type="text" name="excludeOrders" id="excludeOrders" placeholder="e.g. 28800 28815"/>
+            </div>
+            <div class="input-pair">
+                <label class="d-block" for="combineOrders">Combine orders:</label>
+                <input class="d-block" type="text" name="combineOrders" id="combineOrders" placeholder="e.g. 28800,28815=890"/>
+            </div>
+        </div>
+
+        <div class="table-container"></div>
+    </div>
+
+
+    <script src="script.js"></script>
+</body>
