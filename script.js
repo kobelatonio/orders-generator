@@ -300,10 +300,6 @@ function createTable() {
     button.setAttribute('onclick', 'exportCsv()');
     document.querySelector('.table-container').appendChild(button);
     document.querySelector('.table-container').appendChild(table);
-
-    $('select').selectize({
-        sortField: 'text'
-    });
 }
 
 function onProvinceChange(index) {
