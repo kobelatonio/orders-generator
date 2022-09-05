@@ -12,7 +12,9 @@ function upload() {
     } else if (!files[0]) {
         alert("No file selected.");
     } else {
-        document.querySelector('.table-container').innerHTML = "";
+        document.querySelector('.loading').classList = 'd-block loading';
+        document.querySelector('.table-header').innerHTML = '';
+        document.querySelector('.table-body').innerHTML = '';
         tableData = [['Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']];
 
         for (let i = 0; i < files.length; i++) {
@@ -27,6 +29,7 @@ function upload() {
 
                 if (i === files.length - 1) {
                     createTable();
+                    document.querySelector('.loading').classList = 'd-none loading';
                 }
             }
         }
@@ -201,6 +204,9 @@ function createTable() {
 
     var rowHead = document.createElement('tr');
 
+    var cell = document.createElement('th');
+        cell.appendChild(document.createTextNode('#'));
+
     tableData[0].forEach((cellData, index) => {
         var cell = document.createElement('th');
 
@@ -216,7 +222,14 @@ function createTable() {
 
     let province;
     let city;
-    tableData.sort((a, b) => a[0] - b[0]).forEach((rowData, index) => {
+
+    tableData.sort((a, b) => a[0] - b[0]);
+
+    tableData.forEach((it, index) => {
+        it.unshift(index);
+    });
+
+    tableData.forEach((rowData, index) => {
         if (index === 0) {
             return;
         }
@@ -227,7 +240,7 @@ function createTable() {
         rowData.forEach((cellData, columnIndex) => {
             var cell = document.createElement('td');
             
-            if (columnIndex === 4) {
+            if (columnIndex === 5) {
                 var select = document.createElement('select');
                 address.forEach(it => {
                     let option = document.createElement('option');
@@ -243,7 +256,7 @@ function createTable() {
 
                 province = cellData;
                 cell.appendChild(select);
-            } else if (columnIndex === 5) {
+            } else if (columnIndex === 6) {
                 var select = document.createElement('select');
 
                 let selectedProvince = address.find(it => it.province == province);
@@ -261,7 +274,7 @@ function createTable() {
                 city = select.value;
                 tableData[index][5] = select.value;
                 cell.appendChild(select);
-            } else if (columnIndex === 6) {
+            } else if (columnIndex === 7) {
                 var select = document.createElement('select');
 
                 let selectedProvince = address.find(it => it.province == province);
@@ -295,11 +308,18 @@ function createTable() {
     table.classList.add('table-striped');
 
     let button = document.createElement('button');
-    button.classList = 'btn btn-success mb-3';
+    button.classList = 'btn btn-success';
     button.innerHTML = 'Export CSV';
     button.setAttribute('onclick', 'exportCsv()');
-    document.querySelector('.table-container').appendChild(button);
-    document.querySelector('.table-container').appendChild(table);
+
+    let tableHeader = document.querySelector('.table-header');
+    tableHeader.appendChild(button);
+    tableHeader.appendChild(document.createTextNode((tableData.length - 1) + ' orders'));
+
+    let tableContent = document.querySelector('.table-body');
+    tableContent.appendChild(table);
+
+    $('select').select2();
 }
 
 function onProvinceChange(index) {

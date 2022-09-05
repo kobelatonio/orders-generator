@@ -34,12 +34,12 @@ label {
     background-color: #fff;
 }
 
+.table-body {
+    width: 100%;
+    overflow: auto;
+}
+
 .table {
     background: #fff;
     border-radius: 10px;
-}
-
-.table-container {
-    width: 100%;
-    overflow: auto;
 }
