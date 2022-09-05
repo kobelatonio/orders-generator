@@ -15,7 +15,7 @@ function upload() {
         document.querySelector('.loading').classList = 'd-block loading';
         document.querySelector('.table-header').innerHTML = '';
         document.querySelector('.table-body').innerHTML = '';
-        tableData = [['Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']];
+        tableData = [['#', 'Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']];
 
         for (let i = 0; i < files.length; i++) {
             let fr = new FileReader();
@@ -204,13 +204,10 @@ function createTable() {
 
     var rowHead = document.createElement('tr');
 
-    var cell = document.createElement('th');
-        cell.appendChild(document.createTextNode('#'));
-
     tableData[0].forEach((cellData, index) => {
         var cell = document.createElement('th');
 
-        if ([4, 5, 6].includes(index)) {
+        if ([5, 6, 7].includes(index)) {
             cell.classList = 'text-nowrap';
         }
 
@@ -226,7 +223,9 @@ function createTable() {
     tableData.sort((a, b) => a[0] - b[0]);
 
     tableData.forEach((it, index) => {
-        it.unshift(index);
+        if (index > 0) {
+            it.unshift(index);
+        }
     });
 
     tableData.forEach((rowData, index) => {
@@ -255,6 +254,7 @@ function createTable() {
                 select.setAttribute('onchange', 'onProvinceChange(' + currentIndex + ')');
 
                 province = cellData;
+                tableData[index][5] = select.value;
                 cell.appendChild(select);
             } else if (columnIndex === 6) {
                 var select = document.createElement('select');
@@ -272,7 +272,7 @@ function createTable() {
                 select.setAttribute('onchange', 'onCityChange(' + currentIndex + ')');
 
                 city = select.value;
-                tableData[index][5] = select.value;
+                tableData[index][6] = select.value;
                 cell.appendChild(select);
             } else if (columnIndex === 7) {
                 var select = document.createElement('select');
@@ -290,7 +290,7 @@ function createTable() {
                 select.dataset.col = 6;
                 select.setAttribute('onchange', 'onBarangayChange(' + currentIndex + ')');
 
-                tableData[index][6] = select.value;
+                tableData[index][7] = select.value;
                 cell.appendChild(select);
             } else {
                 cell.appendChild(document.createTextNode(cellData));
@@ -346,9 +346,9 @@ function onProvinceChange(index) {
         barangaySelect.appendChild(option);
     });
 
-    tableData[index][4] = provinceSelect.value;
-    tableData[index][5] = citySelect.value;
-    tableData[index][6] = barangaySelect.value;
+    tableData[index][5] = provinceSelect.value;
+    tableData[index][6] = citySelect.value;
+    tableData[index][7] = barangaySelect.value;
 }
 
 function onCityChange(index) {
@@ -367,13 +367,13 @@ function onCityChange(index) {
         barangaySelect.appendChild(option);
     });
 
-    tableData[index][5] = citySelect.value;
-    tableData[index][6] = barangaySelect.value;
+    tableData[index][6] = citySelect.value;
+    tableData[index][7] = barangaySelect.value;
 }
 
 function onBarangayChange(index) {
     let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
-    tableData[index][6] = barangaySelect.value;
+    tableData[index][7] = barangaySelect.value;
 }
 
 function exportCsv() {
