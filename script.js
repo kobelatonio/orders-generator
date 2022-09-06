@@ -121,7 +121,7 @@ function processData(raw) {
         row.push(getProvince(raw[i][41]));
         
         // Receiver City
-        row.push('');
+        row.push(raw[i][39]);
         
         // Receiver Region
         row.push('');
@@ -267,6 +267,22 @@ function createTable() {
                     select.appendChild(option);
                 });
 
+                let matches = selectedProvince.cities;
+                let terms = cellData.split(' ');
+
+                terms.forEach(it => {
+                    let term = it.toLowerCase();
+                    if (!['city', 'of', 'municipality'].includes(term)) {
+                        matches = matches.filter(cityItem => {
+                            return cityItem.city.toLowerCase().includes(term);
+                        });
+                    }
+                });
+
+                if (matches.length > 0) {
+                    select.value = matches[0].city;
+                }
+
                 select.dataset.row = currentIndex;
                 select.dataset.col = 5;
                 select.setAttribute('onchange', 'onCityChange(' + currentIndex + ')');
@@ -320,6 +336,18 @@ function createTable() {
     tableContent.appendChild(table);
 
     $('select').select2();
+
+    $('select').on('select2:open', function (e) {
+        console.log($(this));
+        document.querySelector('.select2-search__field').focus();
+    });
+
+    $('select').on('select2:close', function (e) {
+        console.log($(this).attr("data-col"));
+        if ($(this).attr("data-col") < 6) {
+            $('select[data-row="' + $(this).attr("data-row") + '"][data-col="' + (parseInt($(this).attr("data-col")) + 1) + '"]').select2('open');
+        }
+    });
 }
 
 function onProvinceChange(index) {
