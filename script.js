@@ -560,7 +560,7 @@ function getProvince(str) {
         case 'PH-SOR': return 'SORSOGON'; break;
         case 'PH-SCO': return 'SOUTH-COTABATO'; break;
         case 'PH-SLE': return 'SOUTHERN-LEYTE'; break;
-        case 'PH-SUK': return 'SULTAN KUDARAT'; break;
+        case 'PH-SUK': return 'SULTAN-KUDARAT'; break;
         case 'PH-SLU': return 'SULU'; break;
         case 'PH-SUN': return 'SURIGAO-DEL-NORTE'; break;
         case 'PH-SUR': return 'SURIGAO-DEL-SUR'; break;
