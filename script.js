@@ -1,42 +1,102 @@
 let address = [];
-let tableData = [];
-updateButton();
+
+let jntData = [];
+let smsData = [];
+
+let smsDataWrongShippingFee = [];
+let smsDataWrongNumber = [];
+let smsDataRepeatedCustomers = [];
+let smsDataOtherPaymentModes = [];
+
+updateButtons();
 initializeAddress();
 
-function upload() {
+async function upload(type) {
+    document.querySelector('.loading').classList = 'd-block loading';
+
+    jntData = [];
+    smsData = [];
+    
+    smsDataWrongShippingFee = [];
+    smsDataWrongNumber = [];
+    smsDataRepeatedCustomers = [];
+    smsDataOtherPaymentModes = [];
+
+    let raw = await processFiles();
+    if (raw != null) {
+        if (type === 'jnt') {
+            processJntData(raw);
+            jntData.unshift(['#', 'Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']);
+            createJntTable();
+        } else {
+            processSmsData(raw);
+
+            smsData.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Action']);
+            createSmsTable();
+
+            smsDataWrongShippingFee.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Action']);
+            createSmsTableOthers('wrong-shipping-fee');
+
+            smsDataWrongNumber.unshift(['#', 'Order Number', 'Name', 'Phone Number']);
+            createSmsTableOthers('wrong-number');
+
+            smsDataRepeatedCustomers.unshift(['#', 'Order Numbers', 'Name', 'Phone Number']);
+            createSmsTableOthers('repeated-customers');
+
+            smsDataOtherPaymentModes.unshift(['#', 'Order Number', 'Name', 'Phone Number', 'Payment Mode']);
+            createSmsTableOthers('other-payment-modes');
+        }
+    }
+
+    document.querySelector('.loading').classList = 'd-none loading';
+}
+
+async function processFiles() {
     let formFile = document.querySelector('#file');
     let files = formFile.files;
     
     if (!files) {
         alert("This browser doesn't seem to support the `files` property of file inputs.");
+        return null;
     } else if (!files[0]) {
         alert("No file selected.");
+        return null;
     } else {
-        document.querySelector('.loading').classList = 'd-block loading';
-        document.querySelector('.table-header').innerHTML = '';
-        document.querySelector('.table-body').innerHTML = '';
-        tableData = [['#', 'Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']];
+        document.querySelectorAll('.table-header').forEach(element => {
+            element.innerHTML = '';
+        });
+        document.querySelectorAll('.table-body').forEach(element => {
+            element.innerHTML = '';
+        });
 
+        let data = [];
+        let promises = [];
         for (let i = 0; i < files.length; i++) {
-            let fr = new FileReader();
-            let file = files.item(i);
-            fr.onload = processFile;
-            fr.readAsText(file);
+            let promise = new Promise((resolve, reject) => {
+                let fr = new FileReader();  
+                fr.onload = () => {
+                    resolve($.csv.toArrays(fr.result));
+                };
+                fr.onerror = reject;
+                fr.readAsText(files.item(i));
+            });
 
-            function processFile() {
-                let raw = $.csv.toArrays(fr.result);
-                processData(raw);
-
-                if (i === files.length - 1) {
-                    createTable();
-                    document.querySelector('.loading').classList = 'd-none loading';
-                }
-            }
+            promises.push(promise);
         }
+
+        await Promise.all(promises).then((values) => {
+            values.forEach(it => {
+                data = [...data, ...it.slice(1, -1)];
+            });
+
+            data.sort((a, b) => a[0].localeCompare(b[0]));
+        });
+
+        return data;
     }
 }
 
-function processData(raw) {
+function processJntData(raw) {
     let data = [];
 
     let includeOrders = document.querySelector('#includeOrders').value.split(' ');
@@ -53,7 +113,7 @@ function processData(raw) {
         combinedOrders[index][1] = parts[1];
     });
 
-    for (var i = 1; i < raw.length; i++) {
+    for (let i = 0; i < raw.length; i++) {
         let orderNumber = raw[i][0].substring(8);
 
         if (excludeNames.some(it => raw[i][34].includes(it)) && !overrideExcludeNames.includes(orderNumber)) {
@@ -139,7 +199,7 @@ function processData(raw) {
         let count = 0;
         let rows = 0;
 
-        for (var j = 0; j < raw.length; j++) {
+        for (let j = 0; j < raw.length; j++) {
             if (raw[i + j] == null) {
                 break;
             } else if (j > 0 && raw[i + j][13] != "") {
@@ -160,7 +220,7 @@ function processData(raw) {
                 let row = raw.find(it => it[0].includes(item));
                 let rowIndex = raw.indexOf(row);
 
-                for (var j = 0; j < raw.length; j++) {
+                for (let j = 0; j < raw.length; j++) {
                     if (raw[rowIndex + j] == null) {
                         break;
                     } else if (j > 0 && raw[rowIndex + j][13] != "") {
@@ -194,18 +254,143 @@ function processData(raw) {
         i += (rows - 1);
     }
 
-    tableData = [...tableData, ...data]
+    jntData = data;
 }
 
-function createTable() {
-    var table = document.createElement('table');
-    var tableHead = document.createElement('thead');
-    var tableBody = document.createElement('tbody');
+function processSmsData(raw) {
+    let data = [];
+    let repeatedCustomers = [];
+    let wrongNumber = [];
+    let otherPaymentModes = [];
 
-    var rowHead = document.createElement('tr');
+    let includeOrders = document.querySelector('#includeOrders').value.split(' ');
+    let excludeNames = document.querySelector('#excludeNames').value.split(' ');
+    let overrideExcludeNames = document.querySelector('#overrideExcludeNames').value.split(' ');
+    let excludeOrders = document.querySelector('#excludeOrders').value.split(' ');
 
-    tableData[0].forEach((cellData, index) => {
-        var cell = document.createElement('th');
+    for (let i = 0; i < raw.length; i++) {
+        let orderNumber = raw[i][0].substring(8);
+
+        if (excludeNames.some(it => raw[i][34].includes(it)) && !overrideExcludeNames.includes(orderNumber)) {
+            continue;
+        }
+
+        if (excludeOrders.includes(orderNumber)) {
+            continue;
+        }
+        
+        if (raw[i][2] == 'voided' || raw[i][2] == '') {
+            continue;
+        }
+
+        if (includeOrders[0] != '') {
+            let isIncluded = false;
+    
+            includeOrders.forEach(it => {
+                if (it.includes('-')) {
+                    let range = it.split('-');
+                    if (orderNumber >= range[0] && orderNumber <= range[1]) {
+                        isIncluded = true;
+                    }
+                } else if (orderNumber == it) {
+                    isIncluded = true;
+                }
+            });
+    
+            if (!isIncluded) {
+                continue;
+            }
+        }
+
+        let row = [];
+
+        // Order Number
+        row.push(orderNumber);
+
+        // Name
+        row.push(convertToTitleCase(raw[i][34]));
+
+        // Phone Number
+        let phoneNumber = formatPhoneNumber(raw[i][43]);
+        row.push(phoneNumber);
+
+        // Province
+        row.push(getProvince(raw[i][41]));
+
+        // City
+        row.push(raw[i][39]);
+
+        // Address
+        row.push(raw[i][35]);
+
+        // COD
+        let cod = raw[i][2] == 'paid' ? "0" : raw[i][9];
+        row.push(cod);
+
+        // Email Address
+        row.push(raw[i][1]);
+
+        // Payment Method
+        row.push(raw[i][47]);
+
+        if (phoneNumber.length !== 11) {
+            wrongNumber.push(row);
+        } else if (raw[i][47].toLowerCase().includes('paymaya') || raw[i][47].toLowerCase().includes('lbc')) {
+            otherPaymentModes.push(row);
+        } else {
+            let isRepeated = false;
+            let repeatedIndex;
+
+            data.forEach((it, index) => {
+                if (it[2] === row[2] || (it[7] != '' && row[7] != '' && it[7] === row[7])) {
+                    isRepeated = true;
+                    repeatedIndex = index;
+                }
+            });
+
+            if (isRepeated) {
+                let existingRow = repeatedCustomers.find(order => order[0] === repeatedIndex);
+                
+                if (existingRow != null) {
+                    existingRow.push(row);
+                } else {
+                    repeatedCustomers.push([repeatedIndex, data[repeatedIndex], row]);
+                }
+            } else {
+                data.push(row);
+            }
+        }
+
+        let rows = 1;
+
+        for (let j = 1; j < raw.length; j++) {
+            if (raw[i + j] == null) {
+                break;
+            } else if (j > 0 && raw[i + j][13] != "") {
+                break;
+            }
+
+            rows++;
+        }
+
+        i += (rows - 1);
+    }
+
+    smsData = data;
+    smsDataRepeatedCustomers = repeatedCustomers;
+    smsDataOtherPaymentModes = otherPaymentModes;
+    smsDataWrongNumber = wrongNumber;
+}
+
+function createJntTable() {
+    let table = document.createElement('table');
+    let tableHead = document.createElement('thead');
+    let tableBody = document.createElement('tbody');
+
+    let rowHead = document.createElement('tr');
+
+    jntData[0].forEach((cellData, index) => {
+        let cell = document.createElement('th');
 
         if ([5, 6, 7].includes(index)) {
             cell.classList = 'text-nowrap';
@@ -220,15 +405,15 @@ function createTable() {
     let province;
     let city;
 
-    tableData.sort((a, b) => a[0] - b[0]);
+    jntData.sort((a, b) => a[0] - b[0]);
 
-    tableData.forEach((it, index) => {
+    jntData.forEach((it, index) => {
         if (index > 0) {
             it.unshift(index);
         }
     });
 
-    tableData.forEach((rowData, index) => {
+    jntData.forEach((rowData, index) => {
         if (index === 0) {
             return;
         }
@@ -237,10 +422,10 @@ function createTable() {
         let currentIndex = index;
 
         rowData.forEach((cellData, columnIndex) => {
-            var cell = document.createElement('td');
+            let cell = document.createElement('td');
             
             if (columnIndex === 5) {
-                var select = document.createElement('select');
+                let select = document.createElement('select');
                 address.forEach(it => {
                     let option = document.createElement('option');
                     option.value = it.province;
@@ -254,10 +439,10 @@ function createTable() {
                 select.setAttribute('onchange', 'onProvinceChange(' + currentIndex + ')');
 
                 province = cellData;
-                tableData[index][5] = select.value;
+                jntData[index][5] = select.value;
                 cell.appendChild(select);
             } else if (columnIndex === 6) {
-                var select = document.createElement('select');
+                let select = document.createElement('select');
 
                 let selectedProvince = address.find(it => it.province == province);
                 selectedProvince.cities.forEach(it => {
@@ -288,10 +473,10 @@ function createTable() {
                 select.setAttribute('onchange', 'onCityChange(' + currentIndex + ')');
 
                 city = select.value;
-                tableData[index][6] = select.value;
+                jntData[index][6] = select.value;
                 cell.appendChild(select);
             } else if (columnIndex === 7) {
-                var select = document.createElement('select');
+                let select = document.createElement('select');
 
                 let selectedProvince = address.find(it => it.province == province);
                 let selectedCity = selectedProvince.cities.find(it => it.city == city);
@@ -306,7 +491,7 @@ function createTable() {
                 select.dataset.col = 6;
                 select.setAttribute('onchange', 'onBarangayChange(' + currentIndex + ')');
 
-                tableData[index][7] = select.value;
+                jntData[index][7] = select.value;
                 cell.appendChild(select);
             } else {
                 cell.appendChild(document.createTextNode(cellData));
@@ -323,31 +508,383 @@ function createTable() {
     table.classList.add('table');
     table.classList.add('table-striped');
 
+    let header = document.createElement('h4');
+    header.innerHTML = 'Orders for Booking';
+
+    let badge = document.createElement('button');
+    badge.classList = 'btn btn-secondary btn-sm';
+    badge.disabled = true;
+    badge.innerHTML = (jntData.length - 1) + ((jntData.length - 1) > 1 ? ' orders' : ' order');
+
     let button = document.createElement('button');
     button.classList = 'btn btn-success';
     button.innerHTML = 'Export CSV';
     button.setAttribute('onclick', 'exportCsv()');
 
-    let tableHeader = document.querySelector('.table-header');
-    tableHeader.appendChild(button);
-    tableHeader.appendChild(document.createTextNode((tableData.length - 1) + ' orders'));
+    let left = document.createElement('div');
+    left.classList = 'd-flex gap-3 align-items-center';
+    left.appendChild(header);
+    left.appendChild(badge);
 
-    let tableContent = document.querySelector('.table-body');
+    let tableHeader = document.querySelector('.main-table .table-header');
+    tableHeader.appendChild(left);
+    tableHeader.appendChild(button);
+
+    let tableContent = document.querySelector('.main-table .table-body');
     tableContent.appendChild(table);
 
     $('select').select2();
 
     $('select').on('select2:open', function (e) {
-        console.log($(this));
         document.querySelector('.select2-search__field').focus();
     });
 
     $('select').on('select2:close', function (e) {
-        console.log($(this).attr("data-col"));
         if ($(this).attr("data-col") < 6) {
             $('select[data-row="' + $(this).attr("data-row") + '"][data-col="' + (parseInt($(this).attr("data-col")) + 1) + '"]').select2('open');
         }
     });
+}
+
+function createSmsTable() {
+    let table = document.createElement('table');
+    let tableHead = document.createElement('thead');
+    let tableBody = document.createElement('tbody');
+
+    let rowHead = document.createElement('tr');
+
+    smsData[0].forEach((cellData) => {
+        let cell = document.createElement('th');
+        cell.classList = 'text-nowrap';
+        cell.appendChild(document.createTextNode(cellData));
+        rowHead.appendChild(cell);
+    });
+
+    tableHead.appendChild(rowHead);
+
+    let data = JSON.parse(JSON.stringify(smsData));
+
+    data.forEach((it, index) => {
+        if (index > 0) {
+            it.unshift(index);
+        }
+    });
+
+    data.forEach((rowData, index) => {
+        if (index === 0) {
+            return;
+        }
+
+        let row = document.createElement('tr');
+
+        rowData.forEach((cellData, columnIndex) => {
+            if (columnIndex > 7) {
+                return;
+            }
+
+            let cell = document.createElement('td');
+
+            if (columnIndex === 7 && cellData === '0') {
+                let paidText = document.createElement('span');
+                paidText.classList = 'text-secondary';
+                paidText.innerHTML = 'Paid';
+                cell.appendChild(paidText);
+            } else {
+                cell.appendChild(document.createTextNode(cellData));
+            }
+
+            row.appendChild(cell);
+        });
+
+        let actionCell = document.createElement('td');
+        let removeButton =  document.createElement('button');
+        removeButton.classList = 'btn btn-warning';
+        removeButton.innerHTML = 'x';
+        removeButton.setAttribute('onclick', 'removeOrder(' + rowData[1] + ')');
+        actionCell.appendChild(removeButton);
+        row.appendChild(actionCell);
+
+        tableBody.appendChild(row);
+    });
+
+    table.appendChild(tableHead);
+    table.appendChild(tableBody);
+    table.classList.add('table');
+    table.classList.add('table-striped');
+
+    let header = document.createElement('h4');
+    header.innerHTML = 'Orders for Confirmation';
+
+    let badge = document.createElement('button');
+    badge.classList = 'btn btn-secondary btn-sm';
+    badge.disabled = true;
+    badge.innerHTML = (data.length - 1) + ((data.length - 1) > 1 ? ' orders' : ' order');
+
+    let button = document.createElement('button');
+    button.classList = 'btn btn-success';
+    button.innerHTML = 'Export TXT';
+    button.setAttribute('onclick', 'exportTxt()');
+
+    let left = document.createElement('div');
+    left.classList = 'd-flex gap-3 align-items-center';
+    left.appendChild(header);
+    left.appendChild(badge);
+
+    let tableHeader = document.querySelector('.main-table .table-header');
+    tableHeader.appendChild(left);
+    tableHeader.appendChild(button);
+
+    let tableContent = document.querySelector('.main-table .table-body');
+    tableContent.appendChild(table);
+}
+
+function createSmsTableOthers(type) {
+    let table = document.createElement('table');
+    let tableHead = document.createElement('thead');
+    let tableBody = document.createElement('tbody');
+
+    let rowHead = document.createElement('tr');
+
+    let data;
+    let title;
+
+    switch(type) {
+        case 'wrong-shipping-fee':
+            data = JSON.parse(JSON.stringify(smsDataWrongShippingFee));
+            title = 'Incorrect Shipping Fee';
+            break;
+        case 'wrong-number':
+            data = JSON.parse(JSON.stringify(smsDataWrongNumber));
+            title = 'Invalid Phone Number';
+            break;
+        case 'repeated-customers':
+            data = JSON.parse(JSON.stringify(smsDataRepeatedCustomers));
+            title = 'Combined Orders';
+            break;
+        case 'other-payment-modes':
+            data = JSON.parse(JSON.stringify(smsDataOtherPaymentModes));
+            title = 'Other Payment Modes';
+            break;
+    }
+
+    data[0].forEach((cellData) => {
+        let cell = document.createElement('th');
+        cell.classList = 'text-nowrap';
+        cell.appendChild(document.createTextNode(cellData));
+        rowHead.appendChild(cell);
+    });
+
+    tableHead.appendChild(rowHead);
+
+    data.forEach((it, index) => {
+        if (index > 0) {
+            it.unshift(index);
+        }
+    });
+
+    if (data.length > 1) {
+        switch(type) {
+            case 'wrong-shipping-fee':
+                data.forEach((rowData, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+            
+                    let row = document.createElement('tr');
+        
+                    rowData.forEach((cellData, columnIndex) => {
+                        if (columnIndex > 7) {
+                            return;
+                        }
+
+                        let cell = document.createElement('td');
+
+                        if (columnIndex === 7 && cellData === '0') {
+                            let paidText = document.createElement('span');
+                            paidText.classList = 'text-secondary';
+                            paidText.innerHTML = 'Paid';
+                            cell.appendChild(paidText);
+                        } else {
+                            cell.appendChild(document.createTextNode(cellData));
+                        }
+
+                        row.appendChild(cell);
+                    });
+
+                    let actionCell = document.createElement('td');
+                    let removeButton =  document.createElement('button');
+                    removeButton.classList = 'btn btn-success';
+                    removeButton.innerHTML = '+';
+                    removeButton.setAttribute('onclick', 'addOrder(' + rowData[1] + ')');
+                    actionCell.appendChild(removeButton);
+                    row.appendChild(actionCell);
+            
+                    tableBody.appendChild(row);
+                });
+                break;
+            case 'wrong-number':
+                data.forEach((rowData, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+            
+                    let row = document.createElement('tr');
+        
+                    rowData.slice(0, 4).forEach((cellData) => {
+                        let cell = document.createElement('td');
+                        cell.appendChild(document.createTextNode(cellData));
+                        row.appendChild(cell);
+                    });
+            
+                    tableBody.appendChild(row);
+                });
+                break;
+            case 'repeated-customers':
+                data.forEach((rowData, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+            
+                    let row = document.createElement('tr');
+            
+                    let indexCell = document.createElement('td');
+                    indexCell.appendChild(document.createTextNode(rowData[0]));
+                    row.appendChild(indexCell);
+        
+                    let orderNumbers = '';
+                    rowData.forEach((cellData, rowIndex) => {
+                        if (rowIndex < 2) {
+                            return;
+                        }
+        
+                        orderNumbers += (rowIndex === 2 ? '' : ', ') + cellData[0];
+                    });
+            
+                    let orderNumbersCell = document.createElement('td');
+                    orderNumbersCell.appendChild(document.createTextNode(orderNumbers));
+                    row.appendChild(orderNumbersCell);
+            
+                    rowData[2].slice(0, 3).forEach((cellData, columnIndex) => {
+                        if (columnIndex < 1) {
+                            return;
+                        }
+        
+                        let cell = document.createElement('td');
+                        cell.appendChild(document.createTextNode(cellData));
+                        row.appendChild(cell);
+                    });
+            
+                    tableBody.appendChild(row);
+                });
+                break;
+            case 'other-payment-modes':
+                data.forEach((rowData, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+            
+                    let row = document.createElement('tr');
+        
+                    rowData.forEach((cellData, columnIndex) => {
+                        if (columnIndex < 4 || columnIndex == 9) {
+                            let cell = document.createElement('td');
+                            cell.appendChild(document.createTextNode(cellData));
+                            row.appendChild(cell);
+                        }
+                    });
+            
+                    tableBody.appendChild(row);
+                });
+                break;
+        }
+    } else {
+        let row = document.createElement('tr');
+        let cell = document.createElement('td');
+        let colspan;
+
+        switch(type) {
+            case 'wrong-shipping-fee':
+                colspan = 9;
+                break;
+            case 'repeated-customers':
+                colspan = 5;
+                break;
+            default:
+                colspan = 4;
+        }
+
+        cell.setAttribute('colspan', colspan);
+        cell.appendChild(document.createTextNode('No rows found.'));
+        row.appendChild(cell);
+
+        tableBody.appendChild(row);
+    }
+
+    table.appendChild(tableHead);
+    table.appendChild(tableBody);
+    table.classList.add('table');
+    table.classList.add('table-striped');
+
+    let tableHeader = document.querySelector('.' + type + ' .table-header');
+    tableHeader.classList.add('mt-3');
+
+    let left = document.createElement('div');
+    left.classList = 'd-flex gap-3 align-items-center';
+
+    let header = document.createElement('h4');
+    header.innerHTML = title;
+    left.appendChild(header);
+
+    if (data.length > 1) {
+        let badge = document.createElement('button');
+        badge.classList = 'btn btn-secondary btn-sm';
+        badge.disabled = true;
+        if (type === 'repeated-customers') {
+            badge.innerHTML = (data.length - 1) + ((data.length - 1) > 1 ? ' customers' : ' customer');
+        } else {
+            badge.innerHTML = (data.length - 1) + ((data.length - 1) > 1 ? ' orders' : ' order');
+        }
+        left.appendChild(badge);
+    }
+    tableHeader.appendChild(left);
+
+    let tableContent = document.querySelector('.' + type + ' .table-body');
+    tableContent.appendChild(table);
+}
+
+function removeOrder(orderNumber) {
+    let removedOrder = smsData.find(it => it[0] == orderNumber);
+    smsDataWrongShippingFee.push(removedOrder);
+
+    let index = smsData.indexOf(removedOrder);
+    smsData.splice(index, 1);
+
+    document.querySelector('.main-table .table-header').innerHTML = '';
+    document.querySelector('.main-table .table-body').innerHTML = '';
+
+    document.querySelector('.wrong-shipping-fee .table-header').innerHTML = '';
+    document.querySelector('.wrong-shipping-fee .table-body').innerHTML = '';
+
+    createSmsTable();
+    createSmsTableOthers('wrong-shipping-fee');
+}
+
+function addOrder(orderNumber) {
+    let removedOrder = smsDataWrongShippingFee.find(it => it[0] == orderNumber);
+    smsData.push(removedOrder);
+    smsData.sort((a, b) => a[0].localeCompare(b[0]));
+
+    let index = smsDataWrongShippingFee.indexOf(removedOrder);
+    smsDataWrongShippingFee.splice(index, 1);
+
+    document.querySelector('.main-table .table-header').innerHTML = '';
+    document.querySelector('.main-table .table-body').innerHTML = '';
+
+    document.querySelector('.wrong-shipping-fee .table-header').innerHTML = '';
+    document.querySelector('.wrong-shipping-fee .table-body').innerHTML = '';
+
+    createSmsTable();
+    createSmsTableOthers('wrong-shipping-fee');
 }
 
 function onProvinceChange(index) {
@@ -374,9 +911,9 @@ function onProvinceChange(index) {
         barangaySelect.appendChild(option);
     });
 
-    tableData[index][5] = provinceSelect.value;
-    tableData[index][6] = citySelect.value;
-    tableData[index][7] = barangaySelect.value;
+    jntData[index][5] = provinceSelect.value;
+    jntData[index][6] = citySelect.value;
+    jntData[index][7] = barangaySelect.value;
 }
 
 function onCityChange(index) {
@@ -395,24 +932,24 @@ function onCityChange(index) {
         barangaySelect.appendChild(option);
     });
 
-    tableData[index][6] = citySelect.value;
-    tableData[index][7] = barangaySelect.value;
+    jntData[index][6] = citySelect.value;
+    jntData[index][7] = barangaySelect.value;
 }
 
 function onBarangayChange(index) {
     let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
-    tableData[index][7] = barangaySelect.value;
+    jntData[index][7] = barangaySelect.value;
 }
 
 function exportCsv() {
-    var processRow = function (row) {
-        var finalVal = '';
-        for (var j = 0; j < row.length; j++) {
-            var innerValue = row[j] === null ? '' : row[j].toString();
+    let processRow = function (row) {
+        let finalVal = '';
+        for (let j = 0; j < row.length; j++) {
+            let innerValue = row[j] === null ? '' : row[j].toString();
             if (row[j] instanceof Date) {
                 innerValue = row[j].toLocaleString();
             };
-            var result = innerValue.replace(/"/g, '""');
+            let result = innerValue.replace(/"/g, '""');
             if (result.search(/("|,|\n)/g) >= 0)
                 result = '"' + result + '"';
             if (j > 0)
@@ -422,21 +959,74 @@ function exportCsv() {
         return finalVal + '\n';
     };
 
-    var csvFile = '';
-    for (var i = 0; i < tableData.length; i++) {
-        csvFile += processRow(tableData[i]);
+    let csvFile = '';
+    for (let i = 0; i < jntData.length; i++) {
+        csvFile += processRow(jntData[i]);
     }
 
-    var blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
+    let fileName = new Date().toDateString().substring(4, 10) + ' - Orders.csv';
+
+    let blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
     if (navigator.msSaveBlob) { // IE 10+
-        navigator.msSaveBlob(blob, 'orders.csv');
+        navigator.msSaveBlob(blob, fileName);
     } else {
-        var link = document.createElement("a");
+        let link = document.createElement("a");
         if (link.download !== undefined) { // feature detection
             // Browsers that support HTML5 download attribute
-            var url = URL.createObjectURL(blob);
+            let url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", 'orders.csv');
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+}
+
+function exportTxt() {
+    let processRow = function (row) {
+        let finalVal = '';
+        for (let j = 0; j < row.length; j++) {
+            let value = row[j];
+            if (j === 1) {
+                let names = row[j].split(' ');
+                value = names[0].toLowerCase() === 'ma.' || names[0].toLowerCase() === 'ma' ? (names[1] ?? names[0]) : names[0]; 
+            } else if (j !== 2) {
+                continue;
+            }
+
+            let innerValue = value === null ? '' : value.toString();
+            if (value instanceof Date) {
+                innerValue = value.toLocaleString();
+            };
+            let result = innerValue.replace(/"/g, '""');
+            if (result.search(/("|,|\n)/g) >= 0)
+                result = '"' + result + '"';
+            if (j > 1)
+                finalVal += ',';
+            finalVal += result;
+        }
+        return finalVal + '\n';
+    };
+
+    let txtFile = '';
+    for (let i = 1; i < smsData.length; i++) {
+        txtFile += processRow(smsData[i]);
+    }
+
+    let fileName = new Date().toDateString().substring(4, 10) + ' - Confirmation.txt';
+
+    let blob = new Blob([txtFile], { type: 'octet/stream' });
+    if (navigator.msSaveBlob) { // IE 10+
+        navigator.msSaveBlob(blob, fileName);
+    } else {
+        let link = document.createElement("a");
+        if (link.download !== undefined) { // feature detection
+            // Browsers that support HTML5 download attribute
+            let url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -446,13 +1036,13 @@ function exportCsv() {
 }
 
 function convertToTitleCase(str) {
-    var name = str; 
+    let name = str; 
     name = name.replace('(FB) ', '');
     name = name.replace('(IG) ', '');
     name = name.replace('(GRAB) ', '');
 
-    var splitStr = name.toLowerCase().split(' ');
-    for (var i = 0; i < splitStr.length; i++) {
+    let splitStr = name.toLowerCase().split(' ');
+    for (let i = 0; i < splitStr.length; i++) {
         splitStr[i] = splitStr[i].charAt(0).toUpperCase() + splitStr[i].substring(1);     
     }
 
@@ -478,11 +1068,13 @@ function formatPhoneNumber(str) {
     return number;
 }
 
-function updateButton() {
+function updateButtons() {
     if(document.getElementById("file").value === "") { 
-        document.getElementById('uploadButton').disabled = true; 
-    } else { 
-        document.getElementById('uploadButton').disabled = false;
+        document.getElementById('jntButton').disabled = true; 
+        document.getElementById('smsButton').disabled = true; 
+    } else {
+        document.getElementById('jntButton').disabled = false;
+        document.getElementById('smsButton').disabled = false;
     }
 }
 
@@ -583,7 +1175,7 @@ function initializeAddress() {
             let arr = $.csv.toArrays(response);
             let temp = [];
 
-            for (var i = 0; i < arr.length; i++) {
+            for (let i = 0; i < arr.length; i++) {
                 if (arr[i] == null) {
                     break;
                 }
@@ -595,7 +1187,7 @@ function initializeAddress() {
                 }
 
                 let cityRows = 0;
-                for (var j = 0; j < arr.length; j++) {
+                for (let j = 0; j < arr.length; j++) {
                     if (arr[i + j] == null) {
                         break;
                     } else if (arr[i + j][0] == arr[i][0]) {
@@ -606,7 +1198,7 @@ function initializeAddress() {
                         }
 
                         let barangayRows = 0;
-                        for (var k = 0; k < arr.length; k++) {
+                        for (let k = 0; k < arr.length; k++) {
                             if (arr[i + j + k] == null) {
                                 break;
                             } else if (arr[i + j + k][1] == arr[i + j][1]) {

@@ -17,16 +17,17 @@
     <div class="container-fluid">
         <div class="d-flex mb-3 gap-3 align-items-center">
             <h1>Orders Generator</h1>
-            <button type="button" class="btn btn-primary" id="uploadButton" onclick="upload()" disabled>Create Table</button>
+            <button type="button" class="btn btn-info" id="smsButton" onclick="upload('sms')" disabled>Create SMS Import</button>
+            <button type="button" class="btn btn-primary" id="jntButton" onclick="upload('jnt')" disabled>Create JNT Template</button>
         </div>
         <div class="d-flex mb-3 gap-3 flex-wrap align-items-start">
             <div class="input-pair">
                 <label class="d-block" for="file">Upload CSV files: <span class="text-danger">*</span></label>
-                <input class="d-block" type="file" name="file" id="file" multiple="multiple" onchange="updateButton()" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"/>
+                <input class="d-block" type="file" name="file" id="file" multiple="multiple" onchange="updateButtons()" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"/>
             </div>
             <div class="input-pair">
-                <label class="d-block" for="includeOrders">Include orders: <span class="text-danger">*</span></label>
-                <input class="d-block" type="text" name="includeOrders" id="includeOrders" onchange="updateButton()" placeholder="e.g. 28940-28950 28965"/>
+                <label class="d-block" for="includeOrders">Include orders:</label>
+                <input class="d-block" type="text" name="includeOrders" id="includeOrders" onchange="updateButtons()" placeholder="e.g. 28940-28950 28965"/>
             </div>
             <div class="input-pair">
                 <label class="d-block" for="excludeNames">Exclude names with:</label>
@@ -46,8 +47,30 @@
 
         <div class="table-container">
             <p class="d-none loading">Loading...</p>
-            <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-            <div class="table-body"></div>
+            <div class="main-table">
+                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                <div class="table-body"></div>
+            </div>
+
+            <div class="wrong-shipping-fee">
+                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                <div class="table-body"></div>
+            </div>
+
+            <div class="repeated-customers">
+                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                <div class="table-body"></div>
+            </div>
+
+            <div class="wrong-number">
+                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                <div class="table-body"></div>
+            </div>
+
+            <div class="other-payment-modes">
+                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                <div class="table-body"></div>
+            </div>
         </div>
     </div>
 
