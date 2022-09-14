@@ -335,7 +335,7 @@ function processSmsData(raw) {
 
         if (phoneNumber.length !== 11) {
             wrongNumber.push(row);
-        } else if (raw[i][47].toLowerCase().includes('paymaya') || raw[i][47].toLowerCase().includes('lbc')) {
+        } else if (raw[i][47].toLowerCase().includes('paymaya') || raw[i][47].toLowerCase().includes('lbc') || raw[i][47].toLowerCase().includes('custom')) {
             otherPaymentModes.push(row);
         } else {
             let isRepeated = false;
