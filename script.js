@@ -7,6 +7,8 @@ let smsDataWrongShippingFee = [];
 let smsDataWrongNumber = [];
 let smsDataRepeatedCustomers = [];
 let smsDataOtherPaymentModes = [];
+let smsDataFreeShipping = [];
+let smsDataBillingShipping = [];
 
 updateButtons();
 initializeAddress();
@@ -21,6 +23,7 @@ async function upload(type) {
     smsDataWrongNumber = [];
     smsDataRepeatedCustomers = [];
     smsDataOtherPaymentModes = [];
+    smsDataFreeShipping = [];
 
     let raw = await processFiles();
     if (raw != null) {
@@ -31,20 +34,26 @@ async function upload(type) {
         } else {
             processSmsData(raw);
 
-            smsData.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Action']);
+            smsData.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Donation', 'Action']);
             createSmsTable();
 
             smsDataWrongShippingFee.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Action']);
-            createSmsTableOthers('wrong-shipping-fee');
+            createSmsTableOthers('wrong-shipping-fee', [0, 1, 2, 3, 4, 5, 6, 7]);
+
+            smsDataFreeShipping.unshift(['#', 'Order Number', 'Name', 'Phone Number', 'Shipping Fee', 'Subtotal']);
+            createSmsTableOthers('free-shipping', [0, 1, 2, 3, 7, 12]);
 
             smsDataWrongNumber.unshift(['#', 'Order Number', 'Name', 'Phone Number']);
-            createSmsTableOthers('wrong-number');
+            createSmsTableOthers('wrong-number', [0, 1, 2, 3]);
 
             smsDataRepeatedCustomers.unshift(['#', 'Order Numbers', 'Name', 'Phone Number']);
-            createSmsTableOthers('repeated-customers');
+            createSmsTableOthers('repeated-customers', [1, 2, 3]);
 
             smsDataOtherPaymentModes.unshift(['#', 'Order Number', 'Name', 'Phone Number', 'Payment Mode']);
-            createSmsTableOthers('other-payment-modes');
+            createSmsTableOthers('other-payment-modes', [0, 1, 2, 3, 9]);
+
+            smsDataBillingShipping.unshift(['#', 'Order Number', 'Name', 'Phone Number']);
+            createSmsTableOthers('billing-shipping', [0, 1, 2, 3]);
         }
     }
 
@@ -86,7 +95,7 @@ async function processFiles() {
 
         await Promise.all(promises).then((values) => {
             values.forEach(it => {
-                data = [...data, ...it.slice(1, -1)];
+                data = [...data, ...it.slice(1)];
             });
 
             data.sort((a, b) => a[0].localeCompare(b[0]));
@@ -262,6 +271,9 @@ function processSmsData(raw) {
     let repeatedCustomers = [];
     let wrongNumber = [];
     let otherPaymentModes = [];
+    let wrongShippingFee = [];
+    let freeShipping = [];
+    let billingShipping = [];
 
     let includeOrders = document.querySelector('#includeOrders').value.split(' ');
     let excludeNames = document.querySelector('#excludeNames').value.split(' ');
@@ -303,16 +315,17 @@ function processSmsData(raw) {
         }
 
         let row = [];
+        let isPaid = raw[i][2] == 'paid';
 
         // Order Number
         row.push(orderNumber);
 
         // Name
-        row.push(convertToTitleCase(raw[i][34]));
+        row.push(convertToTitleCase(raw[i][24]));
 
-        // Phone Number
-        let phoneNumber = formatPhoneNumber(raw[i][43]);
-        row.push(phoneNumber);
+        // Billing Phone Number
+        let billingPhoneNumber = formatPhoneNumber(raw[i][33]);
+        row.push(billingPhoneNumber);
 
         // Province
         row.push(getProvince(raw[i][41]));
@@ -323,8 +336,8 @@ function processSmsData(raw) {
         // Address
         row.push(raw[i][35]);
 
-        // COD
-        let cod = raw[i][2] == 'paid' ? "0" : raw[i][9];
+        // Shipping Fee
+        let cod = isPaid ? "0" : raw[i][9];
         row.push(cod);
 
         // Email Address
@@ -333,46 +346,117 @@ function processSmsData(raw) {
         // Payment Method
         row.push(raw[i][47]);
 
-        if (phoneNumber.length !== 11) {
-            wrongNumber.push(row);
-        } else if (raw[i][47].toLowerCase().includes('paymaya') || raw[i][47].toLowerCase().includes('lbc') || raw[i][47].toLowerCase().includes('custom')) {
-            otherPaymentModes.push(row);
-        } else {
-            let isRepeated = false;
-            let repeatedIndex;
-
-            data.forEach((it, index) => {
-                if (it[2] === row[2] || (it[7] != '' && row[7] != '' && it[7] === row[7])) {
-                    isRepeated = true;
-                    repeatedIndex = index;
-                }
-            });
-
-            if (isRepeated) {
-                let existingRow = repeatedCustomers.find(order => order[0] === repeatedIndex);
-                
-                if (existingRow != null) {
-                    existingRow.push(row);
-                } else {
-                    repeatedCustomers.push([repeatedIndex, data[repeatedIndex], row]);
-                }
-            } else {
-                data.push(row);
-            }
-        }
+        // Shipping Phone Number
+        let shippingPhoneNumber = formatPhoneNumber(raw[i][43]);
+        row.push(shippingPhoneNumber);
 
         let rows = 1;
-
+        let donation = 0;
         for (let j = 1; j < raw.length; j++) {
             if (raw[i + j] == null) {
                 break;
             } else if (j > 0 && raw[i + j][13] != "") {
                 break;
+            } else if (raw[i + j][17] == 'Tip') {
+                donation = raw[i + j][18];
             }
 
             rows++;
         }
 
+        // Donation
+        row.push(donation);
+
+        // Subtotal
+        row.push(raw[i][8]);
+
+        // CHECK:
+
+        // Wrong Phone Number
+        if (billingPhoneNumber.length !== 11) {
+            wrongNumber.push(row);
+            i += (rows - 1);
+            continue;
+        }
+
+        // Other Payment Modes
+        if (raw[i][47].toLowerCase().includes('custom')) {
+            otherPaymentModes.push(row);
+            i += (rows - 1);
+            continue;
+        }
+        
+        // Combined Orders
+        let isRepeated = false;
+        let repeatedIndex;
+
+        data.forEach((it, index) => {
+            if (it[2] === row[2] || (it[7] != '' && row[7] != '' && it[7] === row[7])) {
+                isRepeated = true;
+                repeatedIndex = index;
+            }
+        });
+
+        if (isRepeated) {
+            let existingRow = repeatedCustomers.find(order => order[0] === repeatedIndex);
+            
+            if (existingRow != null) {
+                existingRow.push(row);
+            } else {
+                repeatedCustomers.push([repeatedIndex, data[repeatedIndex], row]);
+                existingRow = repeatedCustomers.find(order => order[0] === repeatedIndex);
+            }
+
+            // Free Shipping Error
+            if (!isPaid) {
+                let totalSubTotal = 0;
+                let hasShippingFee = false;
+                let firstOrder = false;
+                existingRow.forEach((order, orderIndex) => {
+                    if (orderIndex == 0) {
+                        return;
+                    }
+    
+                    if (orderIndex == 1) {
+                        firstOrder = order;
+                    }
+    
+                    totalSubTotal += order[8];
+                    if (!hasShippingFee && order[9] > 0) {
+                        hasShippingFee = true;
+                    }
+                });
+    
+                if (totalSubTotal >= 999 && hasShippingFee) {
+                    let existingFreeShipping = freeShipping.find(order => order[0] == firstOrder[0]);
+    
+                    if (existingFreeShipping == null) {
+                        freeShipping.push(firstOrder);
+                    }
+                }
+            }
+
+            i += (rows - 1);
+            continue;
+        }
+
+        // Wrong Shipping Fee
+        if (!isPaid && raw[i][8] < 999 && !checkShippingFee(raw[i][41], raw[i][9])) {
+            wrongShippingFee.push(row);
+        }
+
+        // Free Shipping
+        if (!isPaid && raw[i][8] >= 999 && raw[i][9] > 0) {
+            freeShipping.push(row);
+        }
+
+        // Different Billing & Shipping Details
+        if (row[2] != row[9]) {
+            billingShipping.push(row);
+        }
+
+        // Normal
+        data.push(row);
         i += (rows - 1);
     }
 
@@ -380,6 +464,9 @@ function processSmsData(raw) {
     smsDataRepeatedCustomers = repeatedCustomers;
     smsDataOtherPaymentModes = otherPaymentModes;
     smsDataWrongNumber = wrongNumber;
+    smsDataWrongShippingFee = wrongShippingFee;
+    smsDataFreeShipping = freeShipping;
+    smsDataBillingShipping = billingShipping;
 }
 
 function createJntTable() {
@@ -578,7 +665,7 @@ function createSmsTable() {
         let row = document.createElement('tr');
 
         rowData.forEach((cellData, columnIndex) => {
-            if (columnIndex > 7) {
+            if (columnIndex > 7 && columnIndex < 11) {
                 return;
             }
 
@@ -638,7 +725,7 @@ function createSmsTable() {
     tableContent.appendChild(table);
 }
 
-function createSmsTableOthers(type) {
+function createSmsTableOthers(type, columns = []) {
     let table = document.createElement('table');
     let tableHead = document.createElement('thead');
     let tableBody = document.createElement('tbody');
@@ -665,6 +752,14 @@ function createSmsTableOthers(type) {
             data = JSON.parse(JSON.stringify(smsDataOtherPaymentModes));
             title = 'Other Payment Modes';
             break;
+        case 'free-shipping':
+            data = JSON.parse(JSON.stringify(smsDataFreeShipping));
+            title = 'Free Shipping Error';
+            break;
+        case 'billing-shipping':
+            data = JSON.parse(JSON.stringify(smsDataBillingShipping));
+            title = 'Different Billing & Shipping Details';
+            break;
     }
 
     data[0].forEach((cellData) => {
@@ -684,6 +779,29 @@ function createSmsTableOthers(type) {
 
     if (data.length > 1) {
         switch(type) {
+            case 'wrong-number':
+            case 'free-shipping':
+            case 'billing-shipping':
+                data.forEach((rowData, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+            
+                    let row = document.createElement('tr');
+        
+                    rowData.forEach((cellData, columnIndex) => {
+                        if (!columns.includes(columnIndex)) {
+                            return;
+                        }
+
+                        let cell = document.createElement('td');
+                        cell.appendChild(document.createTextNode(cellData));
+                        row.appendChild(cell);
+                    });
+            
+                    tableBody.appendChild(row);
+                });
+                break;
             case 'wrong-shipping-fee':
                 data.forEach((rowData, index) => {
                     if (index === 0) {
@@ -693,7 +811,7 @@ function createSmsTableOthers(type) {
                     let row = document.createElement('tr');
         
                     rowData.forEach((cellData, columnIndex) => {
-                        if (columnIndex > 7) {
+                        if (!columns.includes(columnIndex)) {
                             return;
                         }
 
@@ -718,23 +836,6 @@ function createSmsTableOthers(type) {
                     removeButton.setAttribute('onclick', 'addOrder(' + rowData[1] + ')');
                     actionCell.appendChild(removeButton);
                     row.appendChild(actionCell);
-            
-                    tableBody.appendChild(row);
-                });
-                break;
-            case 'wrong-number':
-                data.forEach((rowData, index) => {
-                    if (index === 0) {
-                        return;
-                    }
-            
-                    let row = document.createElement('tr');
-        
-                    rowData.slice(0, 4).forEach((cellData) => {
-                        let cell = document.createElement('td');
-                        cell.appendChild(document.createTextNode(cellData));
-                        row.appendChild(cell);
-                    });
             
                     tableBody.appendChild(row);
                 });
@@ -765,7 +866,7 @@ function createSmsTableOthers(type) {
                     row.appendChild(orderNumbersCell);
             
                     rowData[2].slice(0, 3).forEach((cellData, columnIndex) => {
-                        if (columnIndex < 1) {
+                        if (!columns.includes(columnIndex)) {
                             return;
                         }
         
@@ -786,11 +887,13 @@ function createSmsTableOthers(type) {
                     let row = document.createElement('tr');
         
                     rowData.forEach((cellData, columnIndex) => {
-                        if (columnIndex < 4 || columnIndex == 9) {
-                            let cell = document.createElement('td');
-                            cell.appendChild(document.createTextNode(cellData));
-                            row.appendChild(cell);
+                        if (!columns.includes(columnIndex)) {
+                            return;
                         }
+                        
+                        let cell = document.createElement('td');
+                        cell.appendChild(document.createTextNode(cellData));
+                        row.appendChild(cell);
                     });
             
                     tableBody.appendChild(row);
@@ -1166,6 +1269,22 @@ function getProvince(str) {
     }
 }
 
+function checkShippingFee(province, shippingFee) {
+    let correctShippingFee;
+
+    if (shippingFeeLow.includes(province)) {
+        correctShippingFee = 79;
+    } else if (shippingFeeMid.includes(province)) {
+        correctShippingFee = 89;
+    } else if (shippingFeeHigh.includes(province)) {
+        correctShippingFee = 99;
+    } else {
+        correctShippingFee = 100;
+    }
+
+    return correctShippingFee == shippingFee;
+}
+
 function initializeAddress() {
     $.ajax({
         type: "GET",  
@@ -1225,3 +1344,22 @@ function initializeAddress() {
         }   
     });
 }
+
+let shippingFeeLow = [
+    'PH-RIZ', 'PH-00',
+];
+
+let shippingFeeMid = [
+    'PH-ABR', 'PH-ALB', 'PH-APA', 'PH-AUR', 'PH-BAN', 'PH-BTG', 'PH-BEN', 'PH-BUL', 'PH-CAG', 'PH-CAN', 'PH-CAS', 'PH-CAT', 'PH-CAV', 'PH-IFU', 'PH-ILN', 'PH-ILS', 'PH-ISA', 'PH-KAL', 'PH-LUN', 'PH-LAG', 'PH-MAD', 'PH-MAS', 'PH-MOU', 'PH-NUE', 'PH-NUV', 'PH-MDC', 'PH-MDR', 'PH-PAM', 'PH-PAN', 'PH-QUE', 'PH-QUI', 'PH-ROM', 'PH-SOR', 'PH-TAR', 'PH-ZMB'
+];
+
+let shippingFeeHigh = [
+    'PH-AGN', 'PH-AGS', 'PH-AKL', 'PH-ANT', 'PH-BAS', 'PH-BIL', 'PH-BOH', 'PH-BUK', 'PH-CAM', 'PH-CAP', 'PH-CEB', 'PH-NCO', 'PH-COM', 'PH-DAV', 'PH-DAS', 'PH-DVO', 'PH-DAO', 'PH-DIN', 'PH-EAS', 'PH-GUI', 'PH-ILI', 'PH-LAN', 'PH-LAS', 'PH-LEY', 'PH-MAG', 'PH-MSC', 'PH-MSR', 'PH-NEC', 'PH-NER', 'PH-NSA', 'PH-PLW', 'PH-WSA', 'PH-SAR', 'PH-SIG', 'PH-SCO', 'PH-SLE', 'PH-SUK', 'PH-SLU', 'PH-SUN', 'PH-SUR', 'PH-TAW', 'PH-ZAN', 'PH-ZAS', 'PH-ZSI'
+];
+
+
+
+
+
+
+
