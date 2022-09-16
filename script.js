@@ -373,7 +373,7 @@ function processSmsData(raw) {
         // CHECK:
 
         // Wrong Phone Number
-        if (billingPhoneNumber.length !== 11) {
+        if (billingPhoneNumber.length !== 11 || billingPhoneNumber.substring(0, 2) != '09') {
             wrongNumber.push(row);
             i += (rows - 1);
             continue;
