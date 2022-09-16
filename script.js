@@ -1036,7 +1036,7 @@ function removeOrder(orderNumber) {
     document.querySelector('.wrong-shipping-fee .table-body').innerHTML = '';
 
     createSmsTable();
-    createSmsTableOthers('wrong-shipping-fee');
+    createSmsTableOthers('wrong-shipping-fee', [0, 1, 2, 3, 4, 5, 6, 7]);
 }
 
 function addOrder(orderNumber) {
@@ -1054,7 +1054,7 @@ function addOrder(orderNumber) {
     document.querySelector('.wrong-shipping-fee .table-body').innerHTML = '';
 
     createSmsTable();
-    createSmsTableOthers('wrong-shipping-fee');
+    createSmsTableOthers('wrong-shipping-fee', [0, 1, 2, 3, 4, 5, 6, 7]);
 }
 
 function onProvinceChange(index) {
