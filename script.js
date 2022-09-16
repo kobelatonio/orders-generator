@@ -34,7 +34,7 @@ async function upload(type) {
         } else {
             processSmsData(raw);
 
-            smsData.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Donation', 'Action']);
+            smsData.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Donation', 'Subtotal', 'Action']);
             createSmsTable();
 
             smsDataWrongShippingFee.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Action']);
@@ -910,6 +910,7 @@ function createSmsTableOthers(type, columns = []) {
                 colspan = 9;
                 break;
             case 'repeated-customers':
+            case 'other-payment-modes':
                 colspan = 5;
                 break;
             default:
