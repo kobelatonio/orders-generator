@@ -421,8 +421,8 @@ function processSmsData(raw) {
                         firstOrder = order;
                     }
     
-                    totalSubTotal += order[8];
-                    if (!hasShippingFee && order[9] > 0) {
+                    totalSubTotal += order[11];
+                    if (!hasShippingFee && order[6] > 0) {
                         hasShippingFee = true;
                     }
                 });
@@ -445,9 +445,13 @@ function processSmsData(raw) {
             wrongShippingFee.push(row);
         }
 
-        // Free Shipping
+        // Free Shipping Error
         if (!isPaid && raw[i][8] >= 999 && raw[i][9] > 0) {
-            freeShipping.push(row);
+            let existingFreeShipping = freeShipping.find(order => order[0] == orderNumber);
+
+            if (existingFreeShipping == null) {
+                freeShipping.push(row);
+            }
         }
 
         // Different Billing & Shipping Details
@@ -780,7 +784,6 @@ function createSmsTableOthers(type, columns = []) {
     if (data.length > 1) {
         switch(type) {
             case 'wrong-number':
-            case 'free-shipping':
             case 'billing-shipping':
                 data.forEach((rowData, index) => {
                     if (index === 0) {
@@ -796,6 +799,69 @@ function createSmsTableOthers(type, columns = []) {
 
                         let cell = document.createElement('td');
                         cell.appendChild(document.createTextNode(cellData));
+                        row.appendChild(cell);
+                    });
+            
+                    tableBody.appendChild(row);
+                });
+                break;
+            case 'free-shipping':
+                data.forEach((rowData, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+            
+                    let row = document.createElement('tr');
+                        
+                    let combinedOrders = smsDataRepeatedCustomers.find(it => {
+                        return it[1][0] == rowData[1];
+                    });
+        
+                    rowData.forEach((cellData, columnIndex) => {
+                        if (!columns.includes(columnIndex)) {
+                            return;
+                        }
+
+                        let cell = document.createElement('td');
+                        if (columnIndex == 1 && combinedOrders != null) {
+                            let orderNumbers = '';
+
+                            combinedOrders.forEach((order, orderIndex) => {
+                                if (orderIndex == 0) {
+                                    return;
+                                }
+                                
+                                orderNumbers += (orderIndex == 1 ? '' : ', ') + order[0];
+                            });
+                            cell.appendChild(document.createTextNode(orderNumbers));
+                        } else if (columnIndex == 7 && combinedOrders != null) {
+                            let shippingFees = '';
+
+                            combinedOrders.forEach((order, orderIndex) => {
+                                if (orderIndex == 0) {
+                                    return;
+                                }
+                                
+                                shippingFees += (orderIndex == 1 ? '' : ', ') + order[6];
+                            });
+                            cell.appendChild(document.createTextNode(shippingFees));
+                        } else if (columnIndex == 12 && combinedOrders != null) {
+                            let subtotals = '';
+                            let total = 0;
+
+                            combinedOrders.forEach((order, orderIndex) => {
+                                if (orderIndex == 0) {
+                                    return;
+                                }
+                                
+                                subtotals += (orderIndex == 1 ? '' : ', ') + order[11];
+                                total += parseInt(order[11]);
+                            });
+                            cell.appendChild(document.createTextNode(subtotals + ' = ' + total));
+                        } else {
+                            cell.appendChild(document.createTextNode(cellData));
+                        }
+
                         row.appendChild(cell);
                     });
             
