@@ -440,11 +440,6 @@ function processSmsData(raw) {
             continue;
         }
 
-        // Wrong Shipping Fee
-        if (!isPaid && raw[i][8] < 999 && !checkShippingFee(raw[i][41], raw[i][9])) {
-            wrongShippingFee.push(row);
-        }
-
         // Free Shipping Error
         if (!isPaid && raw[i][8] >= 999 && raw[i][9] > 0) {
             let existingFreeShipping = freeShipping.find(order => order[0] == orderNumber);
@@ -457,6 +452,14 @@ function processSmsData(raw) {
         // Different Billing & Shipping Details
         if (row[2] != row[9]) {
             billingShipping.push(row);
+        }
+
+        // Wrong Shipping Fee
+        if (!isPaid && raw[i][8] < 999 && !checkShippingFee(raw[i][41], raw[i][9])) {
+            wrongShippingFee.push(row);
+
+            i += (rows - 1);
+            continue;
         }
 
         // Normal
