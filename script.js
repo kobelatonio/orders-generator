@@ -691,11 +691,24 @@ function createSmsTable() {
         });
 
         let actionCell = document.createElement('td');
+
+        let buttonContainer = document.createElement('div');
+        buttonContainer.classList = 'd-flex gap-3';
+        
         let removeButton =  document.createElement('button');
         removeButton.classList = 'btn btn-warning';
         removeButton.innerHTML = 'x';
         removeButton.setAttribute('onclick', 'removeOrder(' + rowData[1] + ')');
-        actionCell.appendChild(removeButton);
+
+        let deleteButton =  document.createElement('button');
+        deleteButton.classList = 'btn btn-danger';
+        deleteButton.innerHTML = '-';
+        deleteButton.setAttribute('onclick', 'deleteOrder(' + rowData[1] + ')');
+
+        buttonContainer.appendChild(removeButton);
+        buttonContainer.appendChild(deleteButton);
+        
+        actionCell.appendChild(buttonContainer);
         row.appendChild(actionCell);
 
         tableBody.appendChild(row);
@@ -1040,6 +1053,17 @@ function removeOrder(orderNumber) {
 
     createSmsTable();
     createSmsTableOthers('wrong-shipping-fee', [0, 1, 2, 3, 4, 5, 6, 7]);
+}
+
+function deleteOrder(orderNumber) {
+    let deletedOrder = smsData.find(it => it[0] == orderNumber);
+    let index = smsData.indexOf(deletedOrder);
+    smsData.splice(index, 1);
+
+    document.querySelector('.main-table .table-header').innerHTML = '';
+    document.querySelector('.main-table .table-body').innerHTML = '';
+
+    createSmsTable();
 }
 
 function addOrder(orderNumber) {
