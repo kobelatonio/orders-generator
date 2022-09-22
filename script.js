@@ -991,6 +991,9 @@ function createSmsTableOthers(type, columns = []) {
             case 'wrong-shipping-fee':
                 colspan = 9;
                 break;
+            case 'free-shipping':
+                colspan = 6;
+                break;
             case 'repeated-customers':
             case 'other-payment-modes':
                 colspan = 5;
@@ -1248,11 +1251,7 @@ function convertToTitleCase(str) {
 
 function formatPhoneNumber(str) {
     let number = str;
-    number = number.replace(/ /g, '');
-    number = number.replace(/'/g, '');
-    number = number.replace(/-/g, '');
-    number = number.replace(/\+/g, '');
-    number = number.replace(/[\])}[{(]/g, '');
+    number = number.replace(/\D/g, '');
 
     if (number.startsWith("9", 0)) {
         number = '0' + number;
