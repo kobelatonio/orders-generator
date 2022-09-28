@@ -37,8 +37,8 @@ async function upload(type) {
             smsData.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Donation', 'Subtotal', 'Action']);
             createSmsTable();
 
-            smsDataWrongShippingFee.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Action']);
-            createSmsTableOthers('wrong-shipping-fee', [0, 1, 2, 3, 4, 5, 6, 7]);
+            smsDataWrongShippingFee.unshift(['#', 'Order #', 'Name', 'Phone #', 'Province', 'City', 'Address', 'Shipping Fee', 'Donation', 'Action']);
+            createSmsTableOthers('wrong-shipping-fee', [0, 1, 2, 3, 4, 5, 6, 7, 11]);
 
             smsDataFreeShipping.unshift(['#', 'Order Number', 'Name', 'Phone Number', 'Shipping Fee', 'Subtotal']);
             createSmsTableOthers('free-shipping', [0, 1, 2, 3, 7, 12]);
@@ -985,24 +985,7 @@ function createSmsTableOthers(type, columns = []) {
     } else {
         let row = document.createElement('tr');
         let cell = document.createElement('td');
-        let colspan;
-
-        switch(type) {
-            case 'wrong-shipping-fee':
-                colspan = 9;
-                break;
-            case 'free-shipping':
-                colspan = 6;
-                break;
-            case 'repeated-customers':
-            case 'other-payment-modes':
-                colspan = 5;
-                break;
-            default:
-                colspan = 4;
-        }
-
-        cell.setAttribute('colspan', colspan);
+        cell.setAttribute('colspan', columns.length);
         cell.appendChild(document.createTextNode('No rows found.'));
         row.appendChild(cell);
 
