@@ -370,6 +370,9 @@ function processSmsData(raw) {
         // Subtotal
         row.push(raw[i][8]);
 
+        // Raw Province
+        row.push(raw[i][41]);
+
         // CHECK:
 
         // Wrong Phone Number
@@ -454,18 +457,22 @@ function processSmsData(raw) {
             billingShipping.push(row);
         }
 
-        // Wrong Shipping Fee
-        if (!isPaid && raw[i][8] < 999 && !checkShippingFee(raw[i][41], raw[i][9])) {
-            wrongShippingFee.push(row);
-
-            i += (rows - 1);
-            continue;
-        }
-
         // Normal
         data.push(row);
         i += (rows - 1);
     }
+
+    // Wrong Shipping Fee
+    data.forEach(it => {
+        if (it[6] > 0 && it[11] < 999 && !checkShippingFee(it[12], it[6])) {
+            wrongShippingFee.push(it);
+            
+            let index = data.indexOf(it);
+            if (index > -1) {
+                it.splice(index, 1);
+            }
+        }
+    });
 
     smsData = data;
     smsDataRepeatedCustomers = repeatedCustomers;
