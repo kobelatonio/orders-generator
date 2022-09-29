@@ -466,11 +466,10 @@ function processSmsData(raw) {
     data.forEach(it => {
         if (it[6] > 0 && it[11] < 999 && !checkShippingFee(it[12], it[6])) {
             wrongShippingFee.push(it);
-            
-            let index = data.indexOf(it);
-            if (index > -1) {
-                it.splice(index, 1);
-            }
+
+            data = data.filter(item => {
+                return item !== it;
+            });
         }
     });
 
