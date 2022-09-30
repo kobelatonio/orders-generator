@@ -894,7 +894,7 @@ function createSmsTableOthers(type) {
     header.innerHTML = title;
     left.appendChild(header);
 
-    if (data.length > 1) {
+    if (data.length > 0) {
         let badge = document.createElement('button');
         badge.classList = 'btn btn-secondary btn-sm';
         badge.disabled = true;
