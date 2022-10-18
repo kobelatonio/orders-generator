@@ -13,6 +13,17 @@ let smsDataBillingShipping = [];
 updateButtons();
 initializeAddress();
 
+history.pushState(null, document.title, location.href);
+window.addEventListener('popstate', function ()
+{
+    const leavePage = confirm('Are you sure?');
+    if (leavePage) {
+        history.back(); 
+    } else {
+        history.pushState(null, document.title, location.href);
+    }  
+});
+
 async function upload(type) {
     document.querySelector('.loading').classList = 'd-block loading';
 
@@ -545,6 +556,7 @@ function createJntTable() {
 
                 terms.forEach(it => {
                     let term = it.toLowerCase();
+                    term = term.replace('ñ', 'n');
                     if (!['city', 'of', 'municipality'].includes(term)) {
                         matches = matches.filter(cityItem => {
                             return cityItem.city.toLowerCase().includes(term);
