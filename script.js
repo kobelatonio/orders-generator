@@ -203,7 +203,7 @@ function processJntData(raw) {
         row.push('EZ');
 
         // Parcel Name
-        row.push('QUINTAS ACCESSORIES');
+        row.push('QUINTAS (FRAGILE ITEMS)');
 
         // Weight
         row.push('0.50');
@@ -260,7 +260,7 @@ function processJntData(raw) {
         row.push(cod);
 
         // Remarks
-        row.push('VIP');
+        row.push('VIP (IMPORTANT ITEM, PLS CONTACT RECEIVER)');
 
         data.push(row);
         
@@ -497,6 +497,12 @@ function createJntTable() {
 
         cell.appendChild(document.createTextNode(cellData));
         rowHead.appendChild(cell);
+
+        if (index === 4) {
+            let cellCity = document.createElement('th');
+            cellCity.appendChild(document.createTextNode('City'));
+            rowHead.appendChild(cellCity);
+        }
     });
 
     tableHead.appendChild(rowHead);
@@ -598,6 +604,12 @@ function createJntTable() {
             }
 
             row.appendChild(cell);
+
+            if (columnIndex === 4) {
+                let cellCity = document.createElement('td');
+                cellCity.appendChild(document.createTextNode(rowData[6]));
+                row.appendChild(cellCity);
+            }
         });
 
         tableBody.appendChild(row);
