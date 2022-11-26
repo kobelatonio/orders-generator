@@ -203,7 +203,7 @@ function processJntData(raw) {
         row.push('EZ');
 
         // Parcel Name
-        row.push('QUINTAS (FRAGILE ITEMS)');
+        row.push('QUINTAS (FRAGILE)');
 
         // Weight
         row.push('0.50');
