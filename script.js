@@ -741,19 +741,29 @@ function createSmsTable() {
     badge.disabled = true;
     badge.innerHTML = (data.length) + ((data.length) > 1 ? ' orders' : ' order');
 
-    let button = document.createElement('button');
-    button.classList = 'btn btn-success';
-    button.innerHTML = 'Export TXT';
-    button.setAttribute('onclick', 'exportTxt()');
+    let exportTxtButton = document.createElement('button');
+    exportTxtButton.classList = 'btn btn-info';
+    exportTxtButton.innerHTML = 'Export TXT';
+    exportTxtButton.setAttribute('onclick', 'exportTxt()');
+
+    let exportExcelButton = document.createElement('button');
+    exportExcelButton.classList = 'btn btn-success';
+    exportExcelButton.innerHTML = 'Export Excel';
+    exportExcelButton.setAttribute('onclick', 'exportExcel()');
 
     let left = document.createElement('div');
     left.classList = 'd-flex gap-3 align-items-center';
     left.appendChild(header);
     left.appendChild(badge);
 
+    let right = document.createElement('div');
+    right.classList = 'd-flex gap-3 align-items-center';
+    right.appendChild(exportTxtButton);
+    right.appendChild(exportExcelButton);
+
     let tableHeader = document.querySelector('.main-table .table-header');
     tableHeader.appendChild(left);
-    tableHeader.appendChild(button);
+    tableHeader.appendChild(right);
 
     let tableContent = document.querySelector('.main-table .table-body');
     tableContent.appendChild(table);
@@ -1144,6 +1154,38 @@ function exportTxt() {
             document.body.removeChild(link);
         }
     }
+}
+
+function exportExcel() {
+    let processRow = function (row) {
+        let arrayRow = [];
+        let columns = ['name', 'billingPhoneNumber'];
+        
+        columns.forEach((column, index) => {
+            let value = row[column];
+
+            if (column === 'name') {
+                let names = row[column].split(' ');
+                value = names[0].toLowerCase() === 'ma.' || names[0].toLowerCase() === 'ma' ? (names[1] ?? names[0]) : names[0]; 
+            }
+
+            arrayRow.push(value);
+        });
+
+        return arrayRow;
+    };
+
+    let excelFile = [];
+    for (let i = 0; i < smsData.length; i++) {
+        let row = processRow(smsData[i]);
+        excelFile.push(row);
+    }
+
+    var workbook = XLSX.utils.book_new(),
+    worksheet = XLSX.utils.aoa_to_sheet(excelFile);
+    workbook.SheetNames.push("First");
+    workbook.Sheets["First"] = worksheet;
+    XLSX.writeFile(workbook, new Date().toDateString().substring(4, 10) + ' - Confirmation.xlsx');
 }
 
 function convertToTitleCase(str) {
