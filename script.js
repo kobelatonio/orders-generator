@@ -861,7 +861,7 @@ function createSmsTableOthers(type) {
                             value = '';
 
                             rowData.orders.forEach((order, orderIndex) => {
-                                value += (orderIndex === 0 ? '' : ', ') + order[column];
+                                value += (orderIndex === 0 ? '' : ',') + order[column];
                             });
                         } else {
                             value = rowData.orders[0][column];
@@ -1206,11 +1206,15 @@ function formatPhoneNumber(str) {
     let number = str;
     number = number.replace(/\D/g, '');
 
-    if (number.startsWith("9", 0)) {
+    if (number.startsWith("00")) {
+        number = '0' + number.substring(2);
+    }
+
+    if (number.startsWith("9")) {
         number = '0' + number;
     }
 
-    if (number.startsWith("63", 0)) {
+    if (number.startsWith("63")) {
         number = '0' + number.substring(2);
     }
 
