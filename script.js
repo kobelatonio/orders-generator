@@ -1206,16 +1206,16 @@ function formatPhoneNumber(str) {
     let number = str;
     number = number.replace(/\D/g, '');
 
+    if (number.startsWith("63")) {
+        number = '0' + number.substring(2).replace(/^0+/, '');
+    }
+
     if (number.startsWith("00")) {
-        number = '0' + number.substring(2);
+        number = '0' + number.substring(2).replace(/^0+/, '');
     }
 
     if (number.startsWith("9")) {
         number = '0' + number;
-    }
-
-    if (number.startsWith("63")) {
-        number = '0' + number.substring(2);
     }
 
     return number;
