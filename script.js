@@ -1203,18 +1203,19 @@ function convertToTitleCase(str) {
 }
 
 function formatPhoneNumber(str) {
-    let number = str;
-    number = number.replace(/\D/g, '');
+    let number = String(str || '').replace(/\D/g, '');
 
-    if (number.startsWith("63")) {
-        number = '0' + number.substring(2).replace(/^0+/, '');
+    if (number.startsWith('63')) {
+        number = number.substring(2);
     }
 
-    if (number.startsWith("00")) {
-        number = '0' + number.substring(2).replace(/^0+/, '');
+    if (number.startsWith('00')) {
+        number = number.substring(2);
     }
 
-    if (number.startsWith("9")) {
+    number = number.replace(/^0+/, '');
+
+    if (number.startsWith('9')) {
         number = '0' + number;
     }
 
