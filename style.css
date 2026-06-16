@@ -47,3 +47,8 @@ label {
     background: #fff;
     border-radius: 10px;
 }
+
+.spx-address-select {
+  min-width: 180px;
+  width: 180px;
+}

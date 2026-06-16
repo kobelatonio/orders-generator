@@ -1,6 +1,8 @@
 let address = [];
+let spxAddress = [];
 
 let jntData = [];
+let spxData = [];
 let smsData = [];
 
 let smsDataWrongShippingFee = [];
@@ -12,6 +14,10 @@ let smsDataBillingShipping = [];
 
 updateButtons();
 initializeAddress();
+
+initializeSpxAddress().then(function () {
+  console.log('SPX address loaded', spxAddress);
+});
 
 history.pushState(null, document.title, location.href);
 window.addEventListener('popstate', function ()
@@ -28,6 +34,7 @@ async function upload(type) {
     document.querySelector('.loading').classList = 'd-block loading';
 
     jntData = [];
+    spxData = [];
     smsData = [];
     
     smsDataWrongShippingFee = [];
@@ -42,6 +49,32 @@ async function upload(type) {
             processJntData(raw);
             jntData.unshift(['#', 'Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']);
             createJntTable();
+        } else if (type === 'spx') {
+            processSpxData(raw);
+            spxData.unshift([
+                '*Recipient Name',
+                '*Recipient Phone',
+                '*Detailed Address',
+                'Region',
+                'Province',
+                'Town/City',
+                'Barangay',
+                'Postal Code',
+                '*Parcel Weight (KG)',
+                '*Parcel Length (CM)',
+                '*Parcel Width (CM)',
+                '*Parcel Height (CM)',
+                '*Item Type',
+                '*Item Name',
+                'Item Quantity',
+                'Customer Reference No.',
+                '*Payment Method',
+                'Delivery Instruction',
+                '*COD Collection (Y/N)',
+                'COD Amount',
+                '*Parcel Value (PHP)'
+            ]);
+            createSpxTable();
         } else {
             processSmsData(raw);
 
@@ -658,6 +691,337 @@ function createJntTable() {
     });
 }
 
+function processSpxData(raw) {
+    let data = [];
+
+    let includeOrders = document.querySelector('#includeOrders').value.split(' ');
+    let excludeNames = document.querySelector('#excludeNames').value.split(' ');
+    let overrideExcludeNames = document.querySelector('#overrideExcludeNames').value.split(' ');
+    let excludeOrders = document.querySelector('#excludeOrders').value.split(' ');
+
+    let combineOrders = document.querySelector('#combineOrders').value.split(' ');
+    let combinedOrders = [];
+    combineOrders.forEach((it, index) => {
+        if (!it.includes('=')) return;
+
+        let parts = it.split('=');
+        combinedOrders[index] = [];
+        combinedOrders[index][0] = parts[0].split(',');
+        combinedOrders[index][1] = parts[1];
+    });
+
+    for (let i = 0; i < raw.length; i++) {
+        let orderNumber = raw[i][0].substring(8);
+
+        if (excludeNames.some(it => raw[i][34].includes(it)) && !overrideExcludeNames.includes(orderNumber)) {
+            continue;
+        }
+
+        if (excludeOrders.includes(orderNumber)) {
+            continue;
+        }
+        
+        if (raw[i][2] == 'voided' || raw[i][2] == '') {
+            continue;
+        }
+
+        let isAlreadyCombined = false;
+        let groupDetails = [];
+
+        combinedOrders.forEach(it => {
+            if (!it) return;
+
+            if (it[0].includes(orderNumber)) {
+                if (it[0].indexOf(orderNumber) === 0) {
+                    groupDetails = it;
+                } else {
+                    isAlreadyCombined = true;
+                }
+            }
+        });
+
+        if (isAlreadyCombined) {
+            continue;
+        }
+
+        if (includeOrders[0] != '') {
+            let isIncluded = false;
+    
+            includeOrders.forEach(it => {
+                if (it.includes('-')) {
+                    let range = it.split('-');
+                    if (orderNumber >= range[0] && orderNumber <= range[1]) {
+                        isIncluded = true;
+                    }
+                } else if (orderNumber == it) {
+                    isIncluded = true;
+                }
+            });
+    
+            if (!isIncluded) {
+                continue;
+            }
+        }
+
+        let quantity = 0;
+        let rows = 0;
+
+        for (let j = 0; j < raw.length; j++) {
+            if (raw[i + j] == null) {
+                break;
+            } else if (j > 0 && raw[i + j][13] != "") {
+                break;
+            } else if (raw[i + j][17] != 'Tip') {
+                quantity += parseInt(raw[i + j][16]);
+            }
+
+            rows++;
+        }
+
+        if (groupDetails.length > 0) {
+            groupDetails[0].forEach((item, index) => {
+                if (index === 0) return;
+
+                let row = raw.find(it => it[0].includes(item));
+                let rowIndex = raw.indexOf(row);
+
+                for (let j = 0; j < raw.length; j++) {
+                    if (raw[rowIndex + j] == null) {
+                        break;
+                    } else if (j > 0 && raw[rowIndex + j][13] != "") {
+                        break;
+                    } else if (raw[rowIndex + j][17] != 'Tip') {
+                        quantity += parseInt(raw[rowIndex + j][16]);
+                    }
+                }
+            });
+        }
+
+        let cod;
+        if (groupDetails.length > 0) {
+            cod = raw[i][2] == 'paid' ? "0" : groupDetails[1];
+        } else {
+            cod = raw[i][2] == 'paid' ? "0" : raw[i][11];
+        }
+
+        let row = [];
+
+        row.push(convertToTitleCase(raw[i][34]));          // *Recipient Name
+        row.push(formatSpxPhoneNumber(raw[i][43]));        // *Recipient Phone, 10 digits starting with 9
+        row.push(raw[i][35]);                              // *Detailed Address
+        row.push('');                                      // Region - leave blank muna
+        row.push(getProvince(raw[i][41]));                 // Province
+        row.push(raw[i][39]);                              // Town/City
+        row.push('');                                      // Barangay - selected in table
+        row.push('0000');                                  // Postal Code
+        row.push('0.50');                                  // *Parcel Weight (KG)
+        row.push('10');                                    // *Parcel Length (CM)
+        row.push('10');                                    // *Parcel Width (CM)
+        row.push('5');                                     // *Parcel Height (CM)
+        row.push('Clothing');                              // *Item Type
+        row.push('QUINTAS');                               // *Item Name
+        row.push(quantity);                                // Item Quantity
+        row.push(orderNumber);                             // Customer Reference No.
+        row.push('Sender Pay');                            // *Payment Method
+        row.push('VIP (IMPORTANT ITEM, PLS CONTACT RECEIVER)'); // Delivery Instruction
+        row.push(Number(cod) > 0 ? 'Y' : 'N');              // *COD Collection (Y/N)
+        row.push(cod);                                     // COD Amount
+        row.push('500');                                   // *Parcel Value (PHP)
+
+        data.push(row);
+        i += (rows - 1);
+    }
+
+    spxData = data;
+}
+
+function createSpxTable() {
+    let table = document.createElement('table');
+    let tableHead = document.createElement('thead');
+    let tableBody = document.createElement('tbody');
+
+    let rowHead = document.createElement('tr');
+
+    spxData[0].forEach(cellData => {
+        let cell = document.createElement('th');
+        cell.classList = 'text-nowrap';
+        cell.appendChild(document.createTextNode(cellData));
+        rowHead.appendChild(cell);
+    });
+
+    tableHead.appendChild(rowHead);
+
+    spxData.sort((a, b) => a[15] - b[15]);
+
+    spxData.forEach((rowData, index) => {
+        if (index === 0) return;
+
+        let row = document.createElement('tr');
+        let currentIndex = index;
+
+        let selectedRegion;
+        let selectedProvince;
+        let selectedCity;
+
+        rowData.forEach((cellData, columnIndex) => {
+            let cell = document.createElement('td');
+
+            // Region
+            if (columnIndex === 3) {
+                let select = document.createElement('select');
+                select.classList.add('spx-address-select');
+
+                spxAddress.forEach(regionItem => {
+                    let option = document.createElement('option');
+                    option.value = regionItem.region;
+                    option.innerHTML = regionItem.region;
+                    select.appendChild(option);
+                });
+
+                let match = findSpxLocation(rowData[4], rowData[5]);
+                if (match) {
+                    select.value = match.region;
+                }
+
+                select.dataset.row = currentIndex;
+                select.dataset.col = 3;
+                select.setAttribute('onchange', 'onSpxRegionChange(' + currentIndex + ')');
+
+                selectedRegion = spxAddress.find(it => it.region == select.value);
+                spxData[index][3] = select.value;
+
+                cell.appendChild(select);
+
+            // Province
+            } else if (columnIndex === 4) {
+                let select = document.createElement('select');
+                select.classList.add('spx-address-select');
+
+                if (selectedRegion) {
+                    selectedRegion.provinces.forEach(provinceItem => {
+                        let option = document.createElement('option');
+                        option.value = provinceItem.province;
+                        option.innerHTML = provinceItem.province;
+                        select.appendChild(option);
+                    });
+                }
+
+                let match = findSpxLocation(rowData[4], rowData[5]);
+                if (match) {
+                    select.value = match.province;
+                }
+
+                select.dataset.row = currentIndex;
+                select.dataset.col = 4;
+                select.setAttribute('onchange', 'onSpxProvinceChange(' + currentIndex + ')');
+
+                selectedProvince = selectedRegion?.provinces.find(it => it.province == select.value);
+                spxData[index][4] = select.value;
+
+                cell.appendChild(select);
+
+            // Town/City
+            } else if (columnIndex === 5) {
+                let select = document.createElement('select');
+                select.classList.add('spx-address-select');
+
+                if (selectedProvince) {
+                    selectedProvince.cities.forEach(cityItem => {
+                        let option = document.createElement('option');
+                        option.value = cityItem.city;
+                        option.innerHTML = cityItem.city;
+                        select.appendChild(option);
+                    });
+                }
+
+                let match = findSpxLocation(rowData[4], rowData[5]);
+                if (match) {
+                    select.value = match.city;
+                }
+
+                select.dataset.row = currentIndex;
+                select.dataset.col = 5;
+                select.setAttribute('onchange', 'onSpxCityChange(' + currentIndex + ')');
+
+                selectedCity = selectedProvince?.cities.find(it => it.city == select.value);
+                spxData[index][5] = select.value;
+
+                cell.appendChild(select);
+
+            // Barangay
+            } else if (columnIndex === 6) {
+                let select = document.createElement('select');
+                select.classList.add('spx-address-select');
+
+                if (selectedCity) {
+                    selectedCity.barangays.forEach(barangay => {
+                        let option = document.createElement('option');
+                        option.value = barangay;
+                        option.innerHTML = barangay;
+                        select.appendChild(option);
+                    });
+                }
+
+                select.dataset.row = currentIndex;
+                select.dataset.col = 6;
+                select.setAttribute('onchange', 'onSpxBarangayChange(' + currentIndex + ')');
+
+                spxData[index][6] = select.value;
+
+                cell.appendChild(select);
+            } else {
+                cell.appendChild(document.createTextNode(cellData));
+            }
+
+            row.appendChild(cell);
+        });
+
+        tableBody.appendChild(row);
+    });
+
+    table.appendChild(tableHead);
+    table.appendChild(tableBody);
+    table.classList.add('table');
+    table.classList.add('table-striped');
+
+    let header = document.createElement('h4');
+    header.innerHTML = 'SPX Orders for Booking';
+
+    let badge = document.createElement('button');
+    badge.classList = 'btn btn-secondary btn-sm';
+    badge.disabled = true;
+    badge.innerHTML = (spxData.length - 1) + ((spxData.length - 1) > 1 ? ' orders' : ' order');
+
+    let button = document.createElement('button');
+    button.classList = 'btn btn-success';
+    button.innerHTML = 'Export CSV';
+    button.setAttribute('onclick', "exportCsv('spx')");
+
+    let left = document.createElement('div');
+    left.classList = 'd-flex gap-3 align-items-center';
+    left.appendChild(header);
+    left.appendChild(badge);
+
+    let tableHeader = document.querySelector('.main-table .table-header');
+    tableHeader.appendChild(left);
+    tableHeader.appendChild(button);
+
+    let tableContent = document.querySelector('.main-table .table-body');
+    tableContent.appendChild(table);
+
+    $('select').select2();
+
+    $('select').on('select2:open', function () {
+        document.querySelector('.select2-search__field').focus();
+    });
+
+    $('select').on('select2:close', function () {
+        if ($(this).attr("data-col") < 6) {
+            $('select[data-row="' + $(this).attr("data-row") + '"][data-col="' + (parseInt($(this).attr("data-col")) + 1) + '"]').select2('open');
+        }
+    });
+}
+
 function createSmsTable() {
     let columns = ['index', 'orderNumber', 'name', 'billingPhoneNumber', 'province', 'city', 'address', 'shippingFee', 'donation', 'subtotal', 'action'];
 
@@ -1062,38 +1426,135 @@ function onBarangayChange(index) {
     jntData[index][7] = barangaySelect.value;
 }
 
-function exportCsv() {
+function onSpxRegionChange(index) {
+    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="3"]');
+    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="4"]');
+    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+
+    provinceSelect.innerHTML = "";
+    citySelect.innerHTML = "";
+    barangaySelect.innerHTML = "";
+
+    let selectedRegion = spxAddress.find(it => it.region == regionSelect.value);
+
+    selectedRegion.provinces.forEach(province => {
+        let option = document.createElement('option');
+        option.value = province.province;
+        option.innerHTML = province.province;
+        provinceSelect.appendChild(option);
+    });
+
+    onSpxProvinceChange(index);
+
+    spxData[index][3] = regionSelect.value;
+}
+
+function onSpxProvinceChange(index) {
+    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="3"]');
+    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="4"]');
+    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+
+    citySelect.innerHTML = "";
+    barangaySelect.innerHTML = "";
+
+    let selectedRegion = spxAddress.find(it => it.region == regionSelect.value);
+    let selectedProvince = selectedRegion?.provinces.find(it => it.province == provinceSelect.value);
+
+    if (selectedProvince) {
+        selectedProvince.cities.forEach(city => {
+            let option = document.createElement('option');
+            option.value = city.city;
+            option.innerHTML = city.city;
+            citySelect.appendChild(option);
+        });
+    }
+
+    onSpxCityChange(index);
+
+    spxData[index][3] = regionSelect.value;
+    spxData[index][4] = provinceSelect.value;
+}
+
+function onSpxCityChange(index) {
+    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="3"]');
+    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="4"]');
+    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+
+    barangaySelect.innerHTML = "";
+
+    let selectedRegion = spxAddress.find(it => it.region == regionSelect.value);
+    let selectedProvince = selectedRegion?.provinces.find(it => it.province == provinceSelect.value);
+    let selectedCity = selectedProvince?.cities.find(it => it.city == citySelect.value);
+
+    if (selectedCity) {
+        selectedCity.barangays.forEach(barangay => {
+            let option = document.createElement('option');
+            option.value = barangay;
+            option.innerHTML = barangay;
+            barangaySelect.appendChild(option);
+        });
+    }
+
+    spxData[index][3] = regionSelect.value;
+    spxData[index][4] = provinceSelect.value;
+    spxData[index][5] = citySelect.value;
+    spxData[index][6] = barangaySelect.value;
+}
+
+function onSpxBarangayChange(index) {
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+    spxData[index][6] = barangaySelect.value;
+}
+
+function exportCsv(type = 'jnt') {
+    let data = type === 'spx' ? spxData : jntData;
+
     let processRow = function (row) {
         let finalVal = '';
+
         for (let j = 0; j < row.length; j++) {
             let innerValue = row[j] === null ? '' : row[j].toString();
+
             if (row[j] instanceof Date) {
                 innerValue = row[j].toLocaleString();
-            };
+            }
+
             let result = innerValue.replace(/"/g, '""');
-            if (result.search(/("|,|\n)/g) >= 0)
+
+            if (result.search(/("|,|\n)/g) >= 0) {
                 result = '"' + result + '"';
-            if (j > 0)
+            }
+
+            if (j > 0) {
                 finalVal += ',';
+            }
+
             finalVal += result;
         }
+
         return finalVal + '\n';
     };
 
     let csvFile = '';
-    for (let i = 0; i < jntData.length; i++) {
-        csvFile += processRow(jntData[i]);
+
+    for (let i = 0; i < data.length; i++) {
+        csvFile += processRow(data[i]);
     }
 
-    let fileName = new Date().toDateString().substring(4, 10) + ' - Orders.csv';
+    let courier = type === 'spx' ? 'SPX' : 'JNT';
+    let fileName = new Date().toDateString().substring(4, 10) + ' - ' + courier + ' Orders.csv';
 
     let blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
-    if (navigator.msSaveBlob) { // IE 10+
+
+    if (navigator.msSaveBlob) {
         navigator.msSaveBlob(blob, fileName);
     } else {
         let link = document.createElement("a");
-        if (link.download !== undefined) { // feature detection
-            // Browsers that support HTML5 download attribute
+
+        if (link.download !== undefined) {
             let url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
             link.setAttribute("download", fileName);
@@ -1222,13 +1683,25 @@ function formatPhoneNumber(str) {
     return number;
 }
 
+function formatSpxPhoneNumber(str) {
+    let number = formatPhoneNumber(str);
+
+    if (number.startsWith('0')) {
+        number = number.substring(1);
+    }
+
+    return number;
+}
+
 function updateButtons() {
     if(document.getElementById("file").value === "") { 
         document.getElementById('jntButton').disabled = true; 
-        document.getElementById('smsButton').disabled = true; 
+        document.getElementById('smsButton').disabled = true;
+        document.getElementById('spxButton').disabled = true;
     } else {
         document.getElementById('jntButton').disabled = false;
         document.getElementById('smsButton').disabled = false;
+        document.getElementById('spxButton').disabled = false;
     }
 }
 
@@ -1407,3 +1880,139 @@ let shippingFeeMid = [
 let shippingFeeHigh = [
     'PH-AGN', 'PH-AGS', 'PH-AKL', 'PH-ANT', 'PH-BAS', 'PH-BIL', 'PH-BOH', 'PH-BUK', 'PH-CAM', 'PH-CAP', 'PH-CEB', 'PH-NCO', 'PH-COM', 'PH-DAV', 'PH-DAS', 'PH-DVO', 'PH-DAO', 'PH-DIN', 'PH-EAS', 'PH-GUI', 'PH-ILI', 'PH-LAN', 'PH-LAS', 'PH-LEY', 'PH-MAG', 'PH-MSC', 'PH-MSR', 'PH-NEC', 'PH-NER', 'PH-NSA', 'PH-PLW', 'PH-WSA', 'PH-SAR', 'PH-SIG', 'PH-SCO', 'PH-SLE', 'PH-SUK', 'PH-SLU', 'PH-SUN', 'PH-SUR', 'PH-TAW', 'PH-ZAN', 'PH-ZAS', 'PH-ZSI'
 ];
+
+function initializeSpxAddress() {
+  return Promise.all([
+    $.get('refregion.csv'),
+    $.get('refprovince.csv'),
+    $.get('refcitymun.csv'),
+    $.get('refbrgy.csv')
+  ]).then(function ([regionCsv, provinceCsv, cityCsv, brgyCsv]) {
+    const regions = $.csv.toArrays(regionCsv);
+    const provinces = $.csv.toArrays(provinceCsv);
+    const cities = $.csv.toArrays(cityCsv);
+    const barangays = $.csv.toArrays(brgyCsv);
+
+    const regionMap = {};
+    const provinceMap = {};
+    const cityMap = {};
+
+    // refregion.csv usually: id, psgcCode, regDesc, regCode
+    regions.slice(1).forEach(row => {
+      const regionCode = row[3];
+      const regionName = normalizeSpxName(row[2]);
+
+      regionMap[regionCode] = {
+        region: regionName,
+        provinces: []
+      };
+    });
+
+    // refprovince.csv usually: id, psgcCode, provDesc, regCode, provCode
+    provinces.slice(1).forEach(row => {
+      const provinceName = normalizeSpxName(row[2]);
+      const regionCode = row[3];
+      const provinceCode = row[4];
+
+      const province = {
+        province: provinceName,
+        cities: []
+      };
+
+      provinceMap[provinceCode] = province;
+
+      if (regionMap[regionCode]) {
+        regionMap[regionCode].provinces.push(province);
+      }
+    });
+
+    // refcitymun.csv usually: id, psgcCode, citymunDesc, regDesc, provCode, citymunCode
+    cities.slice(1).forEach(row => {
+      const cityName = normalizeSpxName(row[2]);
+      const provinceCode = row[4];
+      const cityCode = row[5];
+
+      const city = {
+        city: cityName,
+        barangays: []
+      };
+
+      cityMap[cityCode] = city;
+
+      if (provinceMap[provinceCode]) {
+        provinceMap[provinceCode].cities.push(city);
+      }
+    });
+
+    // refbrgy.csv usually: brgyCode, brgyDesc, regCode, provCode, citymunCode
+    barangays.slice(1).forEach(row => {
+      const barangayName = normalizeSpxName(row[2]);
+      const cityCode = row[5];
+
+      if (cityMap[cityCode]) {
+        cityMap[cityCode].barangays.push(barangayName);
+      }
+    });
+
+    spxAddress = Object.values(regionMap);
+  });
+}
+
+function normalizeSpxName(str) {
+  if (!str) return '';
+
+  let value = String(str)
+    .toLowerCase()
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase())
+    .replace(/\bNcr\b/g, 'NCR')
+    .replace(/\bIi\b/g, 'II')
+    .replace(/\bIii\b/g, 'III')
+    .replace(/\bIv\b/g, 'IV')
+    .replace(/\bPh\b/g, 'PH');
+
+  if (value.includes('National Capital Region')) {
+    return 'Metro Manila';
+  }
+
+  return value;
+}
+
+function findSpxLocation(provinceName, cityName) {
+    let normalizedProvince = normalizeSpxName(provinceName);
+    let normalizedCity = normalizeSpxName(cityName);
+
+    for (let region of spxAddress) {
+        for (let province of region.provinces) {
+            let provinceMatches =
+                province.province === normalizedProvince ||
+                normalizedProvince.includes(province.province) ||
+                province.province.includes(normalizedProvince);
+
+            if (!provinceMatches && normalizedProvince === 'Metro Manila') {
+                provinceMatches = province.province === 'Metro Manila';
+            }
+
+            if (!provinceMatches) continue;
+
+            for (let city of province.cities) {
+                let cityMatches =
+                    city.city === normalizedCity ||
+                    normalizedCity.includes(city.city) ||
+                    city.city.includes(normalizedCity.replace(' City', ''));
+
+                if (cityMatches) {
+                    return {
+                        region: region.region,
+                        province: province.province,
+                        city: city.city
+                    };
+                }
+            }
+        }
+    }
+
+    return null;
+}
