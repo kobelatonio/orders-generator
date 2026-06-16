@@ -1888,31 +1888,53 @@ function initializeSpxAddress() {
     $.get('refcitymun.csv'),
     $.get('refbrgy.csv')
   ]).then(function ([regionCsv, provinceCsv, cityCsv, brgyCsv]) {
-    const regions = $.csv.toArrays(regionCsv);
     const provinces = $.csv.toArrays(provinceCsv);
     const cities = $.csv.toArrays(cityCsv);
     const barangays = $.csv.toArrays(brgyCsv);
 
-    const regionMap = {};
+    const spxRegionMap = {
+      'Metro Manila': {
+        region: 'Metro Manila',
+        provinces: []
+      },
+      'North Luzon': {
+        region: 'North Luzon',
+        provinces: []
+      },
+      'South Luzon': {
+        region: 'South Luzon',
+        provinces: []
+      },
+      'Visayas': {
+        region: 'Visayas',
+        provinces: []
+      },
+      'Mindanao': {
+        region: 'Mindanao',
+        provinces: []
+      }
+    };
+
     const provinceMap = {};
     const cityMap = {};
 
-    // refregion.csv usually: id, psgcCode, regDesc, regCode
-    regions.slice(1).forEach(row => {
-      const regionCode = row[3];
-      const regionName = normalizeSpxName(row[2]);
+    // Add SPX-style pseudo province for Metro Manila
+    const metroManilaProvince = {
+      province: 'Metro Manila',
+      cities: []
+    };
 
-      regionMap[regionCode] = {
-        region: regionName,
-        provinces: []
-      };
-    });
+    provinceMap['13'] = metroManilaProvince;
+    spxRegionMap['Metro Manila'].provinces.push(metroManilaProvince);
 
-    // refprovince.csv usually: id, psgcCode, provDesc, regCode, provCode
+    // refprovince.csv: id, psgcCode, provDesc, regCode, provCode
     provinces.slice(1).forEach(row => {
       const provinceName = normalizeSpxName(row[2]);
       const regionCode = row[3];
       const provinceCode = row[4];
+      const spxRegionName = getSpxRegionGroup(regionCode);
+
+      if (!spxRegionName) return;
 
       const province = {
         province: provinceName,
@@ -1920,17 +1942,20 @@ function initializeSpxAddress() {
       };
 
       provinceMap[provinceCode] = province;
-
-      if (regionMap[regionCode]) {
-        regionMap[regionCode].provinces.push(province);
-      }
+      spxRegionMap[spxRegionName].provinces.push(province);
     });
 
-    // refcitymun.csv usually: id, psgcCode, citymunDesc, regDesc, provCode, citymunCode
+    // refcitymun.csv: id, psgcCode, citymunDesc, regDesc, provCode, citymunCode
     cities.slice(1).forEach(row => {
       const cityName = normalizeSpxName(row[2]);
-      const provinceCode = row[4];
+      const regionCode = row[3];
+      let provinceCode = row[4];
       const cityCode = row[5];
+
+      // NCR has no normal province, so put cities under Metro Manila
+      if (regionCode === '13') {
+        provinceCode = '13';
+      }
 
       const city = {
         city: cityName,
@@ -1944,7 +1969,7 @@ function initializeSpxAddress() {
       }
     });
 
-    // refbrgy.csv usually: brgyCode, brgyDesc, regCode, provCode, citymunCode
+    // refbrgy.csv: id, brgyCode, brgyDesc, regCode, provCode, citymunCode
     barangays.slice(1).forEach(row => {
       const barangayName = normalizeSpxName(row[2]);
       const cityCode = row[5];
@@ -1954,7 +1979,15 @@ function initializeSpxAddress() {
       }
     });
 
-    spxAddress = Object.values(regionMap);
+    spxAddress = [
+      spxRegionMap['Metro Manila'],
+      spxRegionMap['Mindanao'],
+      spxRegionMap['North Luzon'],
+      spxRegionMap['South Luzon'],
+      spxRegionMap['Visayas']
+    ];
+
+    console.log('SPX address loaded', spxAddress);
   });
 }
 
@@ -2015,4 +2048,43 @@ function findSpxLocation(provinceName, cityName) {
     }
 
     return null;
+}
+
+function getSpxRegionGroup(regionCode) {
+  switch (regionCode) {
+    // NCR
+    case '13':
+      return 'Metro Manila';
+
+    // North Luzon
+    case '01': // Ilocos Region
+    case '02': // Cagayan Valley
+    case '03': // Central Luzon
+    case '14': // CAR
+      return 'North Luzon';
+
+    // South Luzon
+    case '04': // CALABARZON
+    case '05': // Bicol Region
+    case '17': // MIMAROPA
+      return 'South Luzon';
+
+    // Visayas
+    case '06': // Western Visayas
+    case '07': // Central Visayas
+    case '08': // Eastern Visayas
+      return 'Visayas';
+
+    // Mindanao
+    case '09': // Zamboanga Peninsula
+    case '10': // Northern Mindanao
+    case '11': // Davao Region
+    case '12': // SOCCSKSARGEN
+    case '15': // ARMM/BARMM
+    case '16': // Caraga
+      return 'Mindanao';
+
+    default:
+      return '';
+  }
 }
