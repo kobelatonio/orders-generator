@@ -13,86 +13,94 @@
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
         <title>Orders Generator</title>
     </head>
+    <body>
+        <div id="pageLoadingOverlay" class="page-loading-overlay d-none">
+            <div class="page-loading-card">
+                <div class="spinner-border text-warning mb-3" role="status"></div>
+                <div class="fw-semibold">Loading SPX addresses...</div>
+                <div class="text-muted small mt-1">Please wait while address.xlsx is being processed.</div>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="d-flex mb-3 gap-3 align-items-center">
+                <h1 class="d-flex align-items-center gap-2">
+                    Orders Generator
+                    <span class="version-badge">v1.44</span>
+                </h1>
+                <button type="button" class="btn btn-info" id="smsButton" onclick="upload('sms')" disabled>Create SMS Import</button>
+                <button type="button" class="btn btn-primary" id="jntButton" onclick="upload('jnt')" disabled>Create JNT Template</button>
+                <button type="button" class="btn btn-warning" id="spxButton" onclick="upload('spx')" disabled>Create SPX Template</button>
+            </div>
+            <div class="d-flex mb-3 gap-3 flex-wrap align-items-start">
+                <div class="input-pair">
+                    <label class="d-block" for="file">Upload CSV files: <span class="text-danger">*</span></label>
+                    <input class="d-block" type="file" name="file" id="file" multiple="multiple" onchange="updateButtons()" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"/>
+                </div>
+                <div class="input-pair">
+                    <label class="d-block" for="includeOrders">Include orders:</label>
+                    <input class="d-block" type="text" name="includeOrders" id="includeOrders" onchange="updateButtons()" placeholder="e.g. 28940-28950 28965"/>
+                </div>
+                <div class="input-pair">
+                    <label class="d-block" for="excludeNames">Exclude names with:</label>
+                    <input class="d-block" type="text" name="excludeNames" id="excludeNames" value="(FB) (IG) (GRAB)"/>
+                    <label class="d-block mt-2" for="overrideExcludeNames">Except orders:</label>
+                    <input class="d-block" type="text" name="overrideExcludeNames" id="overrideExcludeNames" placeholder="e.g. 28800 28815"/>
+                </div>
+                <div class="input-pair">
+                    <label class="d-block" for="excludeOrders">Exclude orders:</label>
+                    <input class="d-block" type="text" name="excludeOrders" id="excludeOrders" placeholder="e.g. 28800 28815"/>
+                </div>
+                <div class="input-pair">
+                    <label class="d-block" for="combineOrders">COD edit / Combine orders:</label>
+                    <input class="d-block" type="text" name="combineOrders" id="combineOrders" placeholder="e.g. 28800,28815=890"/>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <p class="d-none loading">Loading...</p>
+                <div class="main-table">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="wrong-shipping-fee">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="different-shipping-billing">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="repeated-customers">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="free-shipping">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="wrong-number">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="other-payment-modes">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+
+                <div class="billing-shipping">
+                    <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
+                    <div class="table-body"></div>
+                </div>
+            </div>
+        </div>
+
+        <script src="script.js"></script>
+    </body>
 </html>
-<body>
-    <div class="container-fluid">
-        <div class="d-flex mb-3 gap-3 align-items-center">
-            <h1 class="d-flex align-items-center gap-2">
-                Orders Generator
-                <span class="version-badge">v1.42</span>
-            </h1>
-            <button type="button" class="btn btn-info" id="smsButton" onclick="upload('sms')" disabled>Create SMS Import</button>
-            <button type="button" class="btn btn-primary" id="jntButton" onclick="upload('jnt')" disabled>Create JNT Template</button>
-            <button type="button" class="btn btn-warning" id="spxButton" onclick="upload('spx')" disabled>Create SPX Template</button>
-        </div>
-        <div class="d-flex mb-3 gap-3 flex-wrap align-items-start">
-            <div class="input-pair">
-                <label class="d-block" for="file">Upload CSV files: <span class="text-danger">*</span></label>
-                <input class="d-block" type="file" name="file" id="file" multiple="multiple" onchange="updateButtons()" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"/>
-            </div>
-            <div class="input-pair">
-                <label class="d-block" for="includeOrders">Include orders:</label>
-                <input class="d-block" type="text" name="includeOrders" id="includeOrders" onchange="updateButtons()" placeholder="e.g. 28940-28950 28965"/>
-            </div>
-            <div class="input-pair">
-                <label class="d-block" for="excludeNames">Exclude names with:</label>
-                <input class="d-block" type="text" name="excludeNames" id="excludeNames" value="(FB) (IG) (GRAB)"/>
-                <label class="d-block mt-2" for="overrideExcludeNames">Except orders:</label>
-                <input class="d-block" type="text" name="overrideExcludeNames" id="overrideExcludeNames" placeholder="e.g. 28800 28815"/>
-            </div>
-            <div class="input-pair">
-                <label class="d-block" for="excludeOrders">Exclude orders:</label>
-                <input class="d-block" type="text" name="excludeOrders" id="excludeOrders" placeholder="e.g. 28800 28815"/>
-            </div>
-            <div class="input-pair">
-                <label class="d-block" for="combineOrders">COD edit / Combine orders:</label>
-                <input class="d-block" type="text" name="combineOrders" id="combineOrders" placeholder="e.g. 28800,28815=890"/>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <p class="d-none loading">Loading...</p>
-            <div class="main-table">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="wrong-shipping-fee">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="different-shipping-billing">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="repeated-customers">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="free-shipping">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="wrong-number">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="other-payment-modes">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-
-            <div class="billing-shipping">
-                <div class="table-header d-flex mb-3 justify-content-between align-items-center"></div>
-                <div class="table-body"></div>
-            </div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>

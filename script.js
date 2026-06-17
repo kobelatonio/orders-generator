@@ -12,12 +12,27 @@ let smsDataOtherPaymentModes = [];
 let smsDataFreeShipping = [];
 let smsDataBillingShipping = [];
 
+let isSpxAddressLoaded = false;
+
 updateButtons();
 initializeAddress();
 
-initializeSpxAddress().then(function () {
-  console.log('SPX address loaded', spxAddress);
-});
+setPageLoading(true);
+
+initializeSpxAddress()
+    .then(function () {
+        isSpxAddressLoaded = true;
+        setPageLoading(false);
+        updateButtons();
+        console.log('SPX address loaded', spxAddress);
+    })
+    .catch(function (error) {
+        isSpxAddressLoaded = false;
+        setPageLoading(false);
+        updateButtons();
+        alert('SPX address file failed to load. Please check address.xlsx.');
+        console.error('SPX address failed to load', error);
+    });
 
 history.pushState(null, document.title, location.href);
 window.addEventListener('popstate', function ()
@@ -50,6 +65,12 @@ async function upload(type) {
             jntData.unshift(['#', 'Order Number', 'Receiver', 'Receiver Telephone', 'Receiver Address', 'Receiver Province', 'Receiver City', 'Receiver Region', 'Express Type', 'Parcel Name', 'Weight', 'Total Parcels', 'Parcel Value', 'COD', 'Remarks']);
             createJntTable();
         } else if (type === 'spx') {
+            if (!isSpxAddressLoaded) {
+                alert('SPX addresses are still loading. Please wait a few seconds.');
+                document.querySelector('.loading').classList = 'd-none loading';
+                return;
+            }
+
             processSpxData(raw);
             spxData.unshift([
                 '*Recipient Name',
@@ -812,7 +833,7 @@ function processSpxData(raw) {
         row.push(raw[i][35]);                              // *Detailed Address
         row.push(raw[i][39]);                              // Reference City - table only, not exported
         row.push('');                                      // Region - leave blank muna
-        row.push(getProvince(raw[i][41]));                 // Province
+        row.push(formatSpxProvinceName(getProvince(raw[i][41]))); // Province
         row.push(raw[i][39]);                              // Town/City
         row.push('');                                      // Barangay - selected in table
         row.push('0000');                                  // Postal Code
@@ -1700,15 +1721,11 @@ function formatSpxPhoneNumber(str) {
 }
 
 function updateButtons() {
-    if(document.getElementById("file").value === "") { 
-        document.getElementById('jntButton').disabled = true; 
-        document.getElementById('smsButton').disabled = true;
-        document.getElementById('spxButton').disabled = true;
-    } else {
-        document.getElementById('jntButton').disabled = false;
-        document.getElementById('smsButton').disabled = false;
-        document.getElementById('spxButton').disabled = false;
-    }
+    const hasFile = document.getElementById("file").value !== "";
+
+    document.getElementById('jntButton').disabled = !hasFile;
+    document.getElementById('smsButton').disabled = !hasFile;
+    document.getElementById('spxButton').disabled = !hasFile || !isSpxAddressLoaded;
 }
 
 function getProvince(str) {
@@ -1888,159 +1905,100 @@ let shippingFeeHigh = [
 ];
 
 function initializeSpxAddress() {
-  return Promise.all([
-    $.get('refregion.csv'),
-    $.get('refprovince.csv'),
-    $.get('refcitymun.csv'),
-    $.get('refbrgy.csv')
-  ]).then(function ([regionCsv, provinceCsv, cityCsv, brgyCsv]) {
-    const provinces = $.csv.toArrays(provinceCsv);
-    const cities = $.csv.toArrays(cityCsv);
-    const barangays = $.csv.toArrays(brgyCsv);
+    return fetch('address.xlsx')
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => {
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const rows = XLSX.utils.sheet_to_json(worksheet);
 
-    const spxRegionMap = {
-      'Metro Manila': {
-        region: 'Metro Manila',
-        provinces: []
-      },
-      'North Luzon': {
-        region: 'North Luzon',
-        provinces: []
-      },
-      'South Luzon': {
-        region: 'South Luzon',
-        provinces: []
-      },
-      'Visayas': {
-        region: 'Visayas',
-        provinces: []
-      },
-      'Mindanao': {
-        region: 'Mindanao',
-        provinces: []
-      }
-    };
+            const regionMap = {};
 
-    const provinceMap = {};
-    const cityMap = {};
+            rows.forEach(row => {
+                const regionName = cleanSpxAddressValue(row['State']);
+                const provinceName = cleanSpxAddressValue(row['City']);
+                const cityName = cleanSpxAddressValue(row['District']);
+                const barangayName = cleanSpxAddressValue(row['Street']);
 
-    // Add SPX-style pseudo province for Metro Manila
-    const metroManilaProvince = {
-      province: 'Metro Manila',
-      cities: []
-    };
+                if (!regionName || !provinceName || !cityName || !barangayName) return;
 
-    provinceMap['13'] = metroManilaProvince;
-    spxRegionMap['Metro Manila'].provinces.push(metroManilaProvince);
+                if (!regionMap[regionName]) {
+                    regionMap[regionName] = {
+                        region: regionName,
+                        provinces: []
+                    };
+                }
 
-    // refprovince.csv: id, psgcCode, provDesc, regCode, provCode
-    provinces.slice(1).forEach(row => {
-      const provinceName = normalizeSpxName(row[2]);
-      const regionCode = row[3];
-      const provinceCode = row[4];
-      const spxRegionName = getSpxRegionGroup(regionCode);
+                let province = regionMap[regionName].provinces.find(it => it.province === provinceName);
 
-      if (!spxRegionName) return;
+                if (!province) {
+                    province = {
+                        province: provinceName,
+                        cities: []
+                    };
 
-      const province = {
-        province: provinceName,
-        cities: []
-      };
+                    regionMap[regionName].provinces.push(province);
+                }
 
-      provinceMap[provinceCode] = province;
-      spxRegionMap[spxRegionName].provinces.push(province);
-    });
+                let city = province.cities.find(it => it.city === cityName);
 
-    // refcitymun.csv: id, psgcCode, citymunDesc, regDesc, provCode, citymunCode
-    cities.slice(1).forEach(row => {
-      const cityName = normalizeSpxName(row[2]);
-      const regionCode = row[3];
-      let provinceCode = row[4];
-      const cityCode = row[5];
+                if (!city) {
+                    city = {
+                        city: cityName,
+                        barangays: []
+                    };
 
-      // NCR has no normal province, so put cities under Metro Manila
-      if (regionCode === '13') {
-        provinceCode = '13';
-      }
+                    province.cities.push(city);
+                }
 
-      const city = {
-        city: cityName,
-        barangays: []
-      };
+                if (!city.barangays.includes(barangayName)) {
+                    city.barangays.push(barangayName);
+                }
+            });
 
-      cityMap[cityCode] = city;
+            spxAddress = Object.values(regionMap);
 
-      if (provinceMap[provinceCode]) {
-        provinceMap[provinceCode].cities.push(city);
-      }
-    });
+            spxAddress.forEach(region => {
+                region.provinces.sort((a, b) => a.province.localeCompare(b.province));
+                region.provinces.forEach(province => {
+                    province.cities.sort((a, b) => a.city.localeCompare(b.city));
+                    province.cities.forEach(city => {
+                        city.barangays.sort((a, b) => a.localeCompare(b));
+                    });
+                });
+            });
 
-    // refbrgy.csv: id, brgyCode, brgyDesc, regCode, provCode, citymunCode
-    barangays.slice(1).forEach(row => {
-      const barangayName = normalizeSpxName(row[2]);
-      const cityCode = row[5];
-
-      if (cityMap[cityCode]) {
-        cityMap[cityCode].barangays.push(barangayName);
-      }
-    });
-
-    spxAddress = [
-      spxRegionMap['Metro Manila'],
-      spxRegionMap['Mindanao'],
-      spxRegionMap['North Luzon'],
-      spxRegionMap['South Luzon'],
-      spxRegionMap['Visayas']
-    ];
-
-    console.log('SPX address loaded', spxAddress);
-  });
+            console.log('SPX address loaded from address.xlsx', spxAddress);
+        });
 }
 
-function normalizeSpxName(str) {
-  if (!str) return '';
-
-  let value = String(str)
-    .toLowerCase()
-    .replace(/-/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, char => char.toUpperCase())
-    .replace(/\bNcr\b/g, 'NCR')
-    .replace(/\bIi\b/g, 'II')
-    .replace(/\bIii\b/g, 'III')
-    .replace(/\bIv\b/g, 'IV')
-    .replace(/\bPh\b/g, 'PH');
-
-  if (value.includes('National Capital Region')) {
-    return 'Metro Manila';
-  }
-
-  return value;
+function cleanSpxAddressValue(value) {
+    return String(value || '').trim();
 }
 
 function findSpxLocation(provinceName, cityName) {
-    let normalizedProvince = normalizeSpxName(provinceName);
-    let normalizedCity = normalizeSpxName(cityName);
+    const normalizedProvince = cleanSpxAddressValue(provinceName).toLowerCase();
+    const normalizedCity = cleanSpxAddressValue(cityName).toLowerCase();
 
     for (let region of spxAddress) {
         for (let province of region.provinces) {
-            let provinceMatches =
-                province.province === normalizedProvince ||
-                normalizedProvince.includes(province.province) ||
-                province.province.includes(normalizedProvince);
+            const currentProvince = cleanSpxAddressValue(province.province).toLowerCase();
 
-            if (!provinceMatches && normalizedProvince === 'Metro Manila') {
-                provinceMatches = province.province === 'Metro Manila';
-            }
+            const provinceMatches =
+                currentProvince === normalizedProvince ||
+                normalizedProvince.includes(currentProvince) ||
+                currentProvince.includes(normalizedProvince.replace(/-/g, ' '));
 
             if (!provinceMatches) continue;
 
             for (let city of province.cities) {
-                let cityMatches =
-                    city.city === normalizedCity ||
-                    normalizedCity.includes(city.city) ||
-                    city.city.includes(normalizedCity.replace(' City', ''));
+                const currentCity = cleanSpxAddressValue(city.city).toLowerCase();
+
+                const cityMatches =
+                    currentCity === normalizedCity ||
+                    normalizedCity.includes(currentCity) ||
+                    currentCity.includes(normalizedCity.replace(/ city$/i, ''));
 
                 if (cityMatches) {
                     return {
@@ -2056,41 +2014,53 @@ function findSpxLocation(provinceName, cityName) {
     return null;
 }
 
-function getSpxRegionGroup(regionCode) {
-  switch (regionCode) {
-    // NCR
-    case '13':
-      return 'Metro Manila';
+function formatSpxProvinceName(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/-/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
 
-    // North Luzon
-    case '01': // Ilocos Region
-    case '02': // Cagayan Valley
-    case '03': // Central Luzon
-    case '14': // CAR
-      return 'North Luzon';
+function setSpxAddressLoading(isLoading, hasError = false) {
+    const loader = document.getElementById('spxAddressLoading');
 
-    // South Luzon
-    case '04': // CALABARZON
-    case '05': // Bicol Region
-    case '17': // MIMAROPA
-      return 'South Luzon';
+    if (!loader) return;
 
-    // Visayas
-    case '06': // Western Visayas
-    case '07': // Central Visayas
-    case '08': // Eastern Visayas
-      return 'Visayas';
+    if (isLoading) {
+        loader.classList.remove('d-none', 'alert-success', 'alert-danger');
+        loader.classList.add('alert-warning');
+        loader.innerHTML = 'Loading SPX addresses, please wait...';
+        return;
+    }
 
-    // Mindanao
-    case '09': // Zamboanga Peninsula
-    case '10': // Northern Mindanao
-    case '11': // Davao Region
-    case '12': // SOCCSKSARGEN
-    case '15': // ARMM/BARMM
-    case '16': // Caraga
-      return 'Mindanao';
+    if (hasError) {
+        loader.classList.remove('d-none', 'alert-warning', 'alert-success');
+        loader.classList.add('alert-danger');
+        loader.innerHTML = 'SPX address file failed to load. Please check address.xlsx.';
+        return;
+    }
 
-    default:
-      return '';
-  }
+    loader.classList.remove('d-none', 'alert-warning', 'alert-danger');
+    loader.classList.add('alert-success');
+    loader.innerHTML = 'SPX addresses loaded.';
+
+    setTimeout(() => {
+        loader.classList.add('d-none');
+    }, 2000);
+}
+
+function setPageLoading(isLoading, message = 'Loading SPX addresses...', subMessage = 'Please wait while address.xlsx is being processed.') {
+    const overlay = document.getElementById('pageLoadingOverlay');
+
+    if (!overlay) return;
+
+    overlay.classList.toggle('d-none', !isLoading);
+
+    const title = overlay.querySelector('.fw-semibold');
+    const subtitle = overlay.querySelector('.text-muted');
+
+    if (title) title.innerHTML = message;
+    if (subtitle) subtitle.innerHTML = subMessage;
 }

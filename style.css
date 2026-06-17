@@ -63,3 +63,31 @@ label {
   padding: 5px 14px 4px;
   line-height: 1;
 }
+
+.page-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(255, 248, 230, 0.82);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+}
+
+.page-loading-overlay:not(.d-none) {
+  display: flex;
+}
+
+.page-loading-overlay.d-none {
+  display: none !important;
+}
+
+.page-loading-card {
+  background: #ffffff;
+  border: 1px solid #ffe08a;
+  border-radius: 18px;
+  padding: 28px 36px;
+  min-width: 280px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
