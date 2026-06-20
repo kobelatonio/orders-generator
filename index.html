@@ -28,7 +28,15 @@
                     Orders Generator
                     <span class="version-badge">v1.44</span>
                 </h1>
-                <button type="button" class="btn btn-info" id="smsButton" onclick="upload('sms')" disabled>Create SMS Import</button>
+                <div class="dropdown">
+                    <button class="btn btn-info dropdown-toggle" type="button" id="smsButton" data-bs-toggle="dropdown" aria-expanded="false" disabled>
+                        Create SMS Import
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="smsButton">
+                        <li><button class="dropdown-item" type="button" onclick="upload('sms-spx')">Using SPX Rates</button></li>
+                        <li><button class="dropdown-item" type="button" onclick="upload('sms-jnt')">Using JNT Rates</button></li>
+                    </ul>
+                </div>                
                 <button type="button" class="btn btn-primary" id="jntButton" onclick="upload('jnt')" disabled>Create JNT Template</button>
                 <button type="button" class="btn btn-warning" id="spxButton" onclick="upload('spx')" disabled>Create SPX Template</button>
             </div>
@@ -101,6 +109,7 @@
             </div>
         </div>
 
-        <script src="script.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="script.js?v=1.44"></script>
     </body>
 </html>

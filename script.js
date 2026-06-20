@@ -97,8 +97,8 @@ async function upload(type) {
                 '*Parcel Value (PHP)'
             ]);
             createSpxTable();
-        } else {
-            processSmsData(raw);
+        } else if (type === 'sms-spx' || type === 'sms-jnt') {
+            processSmsData(raw, type);
 
             createSmsTable();
 
@@ -325,7 +325,7 @@ function processJntData(raw) {
     jntData = data;
 }
 
-function processSmsData(raw) {
+function processSmsData(raw, type = 'sms-spx') {
     let data = [];
     let repeatedCustomers = [];
     let wrongNumber = [];
@@ -518,7 +518,11 @@ function processSmsData(raw) {
 
     // Wrong Shipping Fee
     data.forEach(it => {
-        if (it['shippingFee'] > 0 && it['subtotal'] < 999 && !checkShippingFee(it['rawProvince'], it['shippingFee'])) {
+        let isCorrectShippingFee = type === 'sms-spx'
+            ? checkSpxShippingFee(it['rawProvince'], it['shippingFee'])
+            : checkJntShippingFee(it['rawProvince'], it['shippingFee']);
+
+        if (it['shippingFee'] > 0 && it['subtotal'] < 999 && !isCorrectShippingFee) {
             wrongShippingFee.push(it);
 
             data = data.filter(item => {
@@ -1816,7 +1820,7 @@ function getProvince(str) {
     }
 }
 
-function checkShippingFee(province, shippingFee) {
+function checkJntShippingFee(province, shippingFee) {
     let correctShippingFee;
 
     if (shippingFeeLow.includes(province)) {
@@ -2063,4 +2067,48 @@ function setPageLoading(isLoading, message = 'Loading SPX addresses...', subMess
 
     if (title) title.innerHTML = message;
     if (subtitle) subtitle.innerHTML = subMessage;
+}
+
+let spxShippingFee79 = [
+    // Metro Manila + Rizal
+    'PH-00', 'PH-RIZ',
+
+    // Luzon
+    'PH-ABR', 'PH-ALB', 'PH-APA', 'PH-AUR', 'PH-BAN', 'PH-BTN',
+    'PH-BTG', 'PH-BEN', 'PH-BUL', 'PH-CAG', 'PH-CAN', 'PH-CAS',
+    'PH-CAT', 'PH-CAV', 'PH-IFU', 'PH-ILN', 'PH-ILS', 'PH-ISA',
+    'PH-KAL', 'PH-LUN', 'PH-LAG', 'PH-MAD', 'PH-MAS', 'PH-MOU',
+    'PH-NUE', 'PH-NUV', 'PH-MDC', 'PH-MDR', 'PH-PAM', 'PH-PAN',
+    'PH-QUE', 'PH-QUI', 'PH-ROM', 'PH-SOR', 'PH-TAR', 'PH-ZMB'
+];
+
+let spxShippingFee89 = [
+    // Visayas
+    'PH-AKL', 'PH-ANT', 'PH-BIL', 'PH-BOH', 'PH-CAP', 'PH-CEB',
+    'PH-EAS', 'PH-GUI', 'PH-ILI', 'PH-LEY', 'PH-NEC', 'PH-NER',
+    'PH-NSA', 'PH-WSA', 'PH-SIG', 'PH-SLE',
+
+    // Mindanao
+    'PH-AGN', 'PH-AGS', 'PH-BAS', 'PH-BUK', 'PH-CAM', 'PH-NCO',
+    'PH-COM', 'PH-DAV', 'PH-DAS', 'PH-DVO', 'PH-DAO', 'PH-DIN',
+    'PH-LAN', 'PH-LAS', 'PH-MAG', 'PH-MSC', 'PH-MSR', 'PH-SAR',
+    'PH-SCO', 'PH-SUK', 'PH-SLU', 'PH-SUN', 'PH-SUR', 'PH-TAW',
+    'PH-ZAN', 'PH-ZAS', 'PH-ZSI',
+
+    // Palawan
+    'PH-PLW'
+];
+
+function checkSpxShippingFee(province, shippingFee) {
+    let correctShippingFee;
+
+    if (spxShippingFee79.includes(province)) {
+        correctShippingFee = 79;
+    } else if (spxShippingFee89.includes(province)) {
+        correctShippingFee = 89;
+    } else {
+        correctShippingFee = 89;
+    }
+
+    return correctShippingFee == shippingFee;
 }
