@@ -830,6 +830,8 @@ function processSpxData(raw) {
             cod = raw[i][2] == 'paid' ? "0" : raw[i][11];
         }
 
+        cod = Math.floor(Number(cod || 0)).toString();
+
         let row = [];
 
         row.push(convertToTitleCase(raw[i][34]));          // *Recipient Name
