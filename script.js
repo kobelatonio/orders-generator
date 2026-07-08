@@ -852,7 +852,7 @@ function processSpxData(raw) {
         row.push(quantity);                                // Item Quantity
         row.push(orderNumber);                             // Customer Reference No.
         row.push('Sender Pay');                            // *Payment Method
-        row.push('VIP (IMPORTANT ITEM, PLS CONTACT RECEIVER)'); // Delivery Instruction
+        row.push('IMPORTANT ITEM, PLS CONTACT RECEIVER, THIS IS NOT A SCAM, DELIVERY IS EXPECTED, RETURN WITHOUT REASON WILL BE REPORTED'); // Delivery Instruction
         row.push(Number(cod) > 0 ? 'Y' : 'N');              // *COD Collection (Y/N)
         row.push(cod);                                     // COD Amount
         row.push('500');                                   // *Parcel Value (PHP)
