@@ -847,8 +847,8 @@ function processSpxData(raw) {
         row.push('10');                                    // *Parcel Length (CM)
         row.push('10');                                    // *Parcel Width (CM)
         row.push('5');                                     // *Parcel Height (CM)
-        row.push('Clothing');                              // *Item Type
-        row.push('QUINTAS');                               // *Item Name
+        row.push('Fragile');                               // *Item Type
+        row.push('QUINTAS JEWELRY (WEBSITE ORDER)');       // *Item Name
         row.push(quantity);                                // Item Quantity
         row.push(orderNumber);                             // Customer Reference No.
         row.push('Sender Pay');                            // *Payment Method
