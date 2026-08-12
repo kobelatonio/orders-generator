@@ -14,6 +14,8 @@ let smsDataBillingShipping = [];
 
 let isSpxAddressLoaded = false;
 
+const deliveryNote = '(PLS CONTACT RECEIVER, DELIVERY IS EXPECTED, RETURN WITHOUT REASON WILL BE REPORTED)';
+
 updateButtons();
 initializeAddress();
 
@@ -836,7 +838,7 @@ function processSpxData(raw) {
 
         row.push(convertToTitleCase(raw[i][34]));          // *Recipient Name
         row.push(formatSpxPhoneNumber(raw[i][43]));        // *Recipient Phone, 10 digits starting with 9
-        row.push(raw[i][35]);                              // *Detailed Address
+        row.push(`${raw[i][35]} ${deliveryNote}`);         // *Detailed Address
         row.push(raw[i][39]);                              // Reference City - table only, not exported
         row.push('');                                      // Region - leave blank muna
         row.push(formatSpxProvinceName(getProvince(raw[i][41]))); // Province
