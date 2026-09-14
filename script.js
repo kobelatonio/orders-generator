@@ -79,6 +79,7 @@ async function upload(type) {
                 '*Recipient Phone',
                 '*Detailed Address',
                 'Reference City',
+                'Province Code',
                 'Region',
                 'Province',
                 'Town/City',
@@ -839,11 +840,12 @@ function processSpxData(raw) {
         row.push(convertToTitleCase(raw[i][34]));          // *Recipient Name
         row.push(formatSpxPhoneNumber(raw[i][43]));        // *Recipient Phone, 10 digits starting with 9
         row.push(`${raw[i][35]} ${deliveryNote}`);         // *Detailed Address
-        row.push(raw[i][39]);                              // Reference City - table only, not exported
-        row.push('');                                      // Region - leave blank muna
+        row.push(raw[i][39]);                              // Reference City - table only
+        row.push((raw[i][41] || '').replace(/^PH-/, ''));  // Province Code - table only
+        row.push('');                                      // Region
         row.push(formatSpxProvinceName(getProvince(raw[i][41]))); // Province
         row.push(raw[i][39]);                              // Town/City
-        row.push('');                                      // Barangay - selected in table
+        row.push('');                                      // Barangay
         row.push('0000');                                  // Postal Code
         row.push('0.50');                                  // *Parcel Weight (KG)
         row.push('10');                                    // *Parcel Length (CM)
@@ -883,7 +885,7 @@ function createSpxTable() {
     tableHead.appendChild(rowHead);
 
     const spxHeader = spxData[0];
-    const spxRows = spxData.slice(1).sort((a, b) => a[16] - b[16]);
+    const spxRows = spxData.slice(1).sort((a, b) => a[17] - b[17]);
     spxData = [spxHeader, ...spxRows];
 
     spxData.forEach((rowData, index) => {
@@ -900,7 +902,7 @@ function createSpxTable() {
             let cell = document.createElement('td');
 
             // Region
-            if (columnIndex === 4) {
+            if (columnIndex === 5) {
                 let select = document.createElement('select');
                 select.classList.add('spx-address-select');
 
@@ -911,22 +913,22 @@ function createSpxTable() {
                     select.appendChild(option);
                 });
 
-                let match = findSpxLocation(rowData[5], rowData[3]);
+                let match = findSpxLocation(rowData[6], rowData[3]);
                 if (match) {
                     select.value = match.region;
                 }
 
                 select.dataset.row = currentIndex;
-                select.dataset.col = 4;
+                select.dataset.col = 5;
                 select.setAttribute('onchange', 'onSpxRegionChange(' + currentIndex + ')');
 
                 selectedRegion = spxAddress.find(it => it.region == select.value);
-                spxData[index][4] = select.value;
+                spxData[index][5] = select.value;
 
                 cell.appendChild(select);
 
             // Province
-            } else if (columnIndex === 5) {
+            } else if (columnIndex === 6) {
                 let select = document.createElement('select');
                 select.classList.add('spx-address-select');
 
@@ -939,22 +941,22 @@ function createSpxTable() {
                     });
                 }
 
-                let match = findSpxLocation(rowData[5], rowData[3]);
+                let match = findSpxLocation(rowData[6], rowData[3]);
                 if (match) {
                     select.value = match.province;
                 }
 
                 select.dataset.row = currentIndex;
-                select.dataset.col = 5;
+                select.dataset.col = 6;
                 select.setAttribute('onchange', 'onSpxProvinceChange(' + currentIndex + ')');
 
                 selectedProvince = selectedRegion?.provinces.find(it => it.province == select.value);
-                spxData[index][5] = select.value;
+                spxData[index][6] = select.value;
 
                 cell.appendChild(select);
 
             // Town/City
-            } else if (columnIndex === 6) {
+            } else if (columnIndex === 7) {
                 let select = document.createElement('select');
                 select.classList.add('spx-address-select');
 
@@ -967,22 +969,22 @@ function createSpxTable() {
                     });
                 }
 
-                let match = findSpxLocation(rowData[5], rowData[3]);
+                let match = findSpxLocation(rowData[6], rowData[3]);
                 if (match) {
                     select.value = match.city;
                 }
 
                 select.dataset.row = currentIndex;
-                select.dataset.col = 6;
+                select.dataset.col = 7;
                 select.setAttribute('onchange', 'onSpxCityChange(' + currentIndex + ')');
 
                 selectedCity = selectedProvince?.cities.find(it => it.city == select.value);
-                spxData[index][6] = select.value;
+                spxData[index][7] = select.value;
 
                 cell.appendChild(select);
 
             // Barangay
-            } else if (columnIndex === 7) {
+            } else if (columnIndex === 8) {
                 let select = document.createElement('select');
                 select.classList.add('spx-address-select');
 
@@ -996,10 +998,10 @@ function createSpxTable() {
                 }
 
                 select.dataset.row = currentIndex;
-                select.dataset.col = 7;
+                select.dataset.col = 8;
                 select.setAttribute('onchange', 'onSpxBarangayChange(' + currentIndex + ')');
 
-                spxData[index][7] = select.value;
+                spxData[index][8] = select.value;
 
                 cell.appendChild(select);
             } else {
@@ -1049,7 +1051,7 @@ function createSpxTable() {
     });
 
     $('select').on('select2:close', function () {
-        if ($(this).attr("data-col") < 7) {
+        if ($(this).attr("data-col") < 8) {
             $('select[data-row="' + $(this).attr("data-row") + '"][data-col="' + (parseInt($(this).attr("data-col")) + 1) + '"]').select2('open');
         }
     });
@@ -1460,10 +1462,10 @@ function onBarangayChange(index) {
 }
 
 function onSpxRegionChange(index) {
-    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="4"]');
-    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
-    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
-    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
+    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
+    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="8"]');
 
     provinceSelect.innerHTML = "";
     citySelect.innerHTML = "";
@@ -1480,14 +1482,14 @@ function onSpxRegionChange(index) {
 
     onSpxProvinceChange(index);
 
-    spxData[index][4] = regionSelect.value;
+    spxData[index][5] = regionSelect.value;
 }
 
 function onSpxProvinceChange(index) {
-    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="4"]');
-    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
-    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
-    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
+    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
+    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="8"]');
 
     citySelect.innerHTML = "";
     barangaySelect.innerHTML = "";
@@ -1506,15 +1508,15 @@ function onSpxProvinceChange(index) {
 
     onSpxCityChange(index);
 
-    spxData[index][4] = regionSelect.value;
-    spxData[index][5] = provinceSelect.value;
+    spxData[index][5] = regionSelect.value;
+    spxData[index][6] = provinceSelect.value;
 }
 
 function onSpxCityChange(index) {
-    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="4"]');
-    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
-    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
-    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
+    let regionSelect = document.querySelector('[data-row="' + index + '"][data-col="5"]');
+    let provinceSelect = document.querySelector('[data-row="' + index + '"][data-col="6"]');
+    let citySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="8"]');
 
     barangaySelect.innerHTML = "";
 
@@ -1531,20 +1533,20 @@ function onSpxCityChange(index) {
         });
     }
 
-    spxData[index][4] = regionSelect.value;
-    spxData[index][5] = provinceSelect.value;
-    spxData[index][6] = citySelect.value;
-    spxData[index][7] = barangaySelect.value;
+    spxData[index][5] = regionSelect.value;
+    spxData[index][6] = provinceSelect.value;
+    spxData[index][7] = citySelect.value;
+    spxData[index][8] = barangaySelect.value;
 }
 
 function onSpxBarangayChange(index) {
-    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="7"]');
-    spxData[index][7] = barangaySelect.value;
+    let barangaySelect = document.querySelector('[data-row="' + index + '"][data-col="8"]');
+    spxData[index][8] = barangaySelect.value;
 }
 
 function exportCsv(type = 'jnt') {
     let data = type === 'spx'
-        ? spxData.map(row => row.filter((_, index) => index !== 3))
+        ? spxData.map(row => row.filter((_, index) => ![3, 4].includes(index)))
         : jntData;
 
     let processRow = function (row) {
